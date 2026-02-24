@@ -867,7 +867,8 @@ function loadAllProducts() {
       });
   }
 }
-  /**
+  
+ /**
  * 🌍 全店舗リスト用：チェックした商品の理論在庫を一括取得して表示
  */
 async function fetchSelectedStocks() {
@@ -880,6 +881,7 @@ async function fetchSelectedStocks() {
   if (btn) {
     btn.disabled = true;
     btn.innerText = "在庫照会中...";
+    btn.style.opacity = "0.5"; // 他のボタンと合わせて半透明にする
   }
 
   // チェックされた行からJANと店コードを抽出
@@ -890,7 +892,7 @@ async function fetchSelectedStocks() {
   }));
 
   try {
-    // GASに一括問い合わせ（サーバー側の getBulkStocks 呼び出し）
+    // GASに一括問い合わせ（アクション名は getBulkStocks で固定）
     const results = await callGAS("getBulkStocks", { targets });
     
     if (results && typeof results === 'object') {
@@ -904,6 +906,7 @@ async function fetchSelectedStocks() {
         }
       });
     } else {
+      // ⚠️ ここで「失敗」が出る場合はGAS側の doPost のアクション名を確認
       alert("在庫データの取得に失敗しました");
     }
   } catch (e) {
@@ -913,6 +916,7 @@ async function fetchSelectedStocks() {
     if (btn) {
       btn.disabled = false;
       btn.innerText = originalText;
+      btn.style.opacity = "1.0"; // 元に戻す
     }
   }
 }

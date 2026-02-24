@@ -574,10 +574,16 @@ async function saveSearchPrice() {
 /**
  * 📋 リスト・在庫関連（あなたのロジックを100%継承）
  */
+//**
+ * 📋 リスト・在庫関連（モード別・シート列構成完全対応版）
+ */
 function renderList(pageId, list) {
   const view = document.getElementById('view_' + pageId);
   const bulkBtn = document.getElementById('btnComplete_' + pageId);
   const stockBtn = document.getElementById('btnStockAll');
+  
+  const mode = document.getElementById('mainModeSelect').value;
+  const isScanMode = (mode === 'scan');
 
   if (!list || list.length === 0) {
     view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">該当データはありません</div>';
@@ -587,23 +593,54 @@ function renderList(pageId, list) {
   }
   
   if(bulkBtn) bulkBtn.style.display = 'block';
-  if(pageId === 'pageAll' && stockBtn) stockBtn.style.display = 'block';
+  if(pageId === 'pageAll' && stockBtn) {
+    stockBtn.style.display = isScanMode ? 'block' : 'none';
+  }
 
-  let html = `<table class="list-table"><tr><th>選択</th><th>期限</th><th>商品情報</th><th>数</th></tr>`;
+  // --- ヘッダーの切り替え ---
+  let headerHtml = isScanMode 
+    ? `<tr><th>選択</th><th>期限</th><th>商品情報</th><th>数</th></tr>`
+    : `<tr><th>選択</th><th>EC在庫</th><th>商品情報</th><th>EC価格</th></tr>`; // 価格モード用ヘッダー
+
+  let html = `<table class="list-table">${headerHtml}`;
   
   list.forEach(item => {
-    const rowClass = item.isExpired ? 'danger' : '';
-    // 店コードと店名を表示（全店舗リストでも誰の商品か分かるように）
+    const rowClass = (isScanMode && item.isExpired) ? 'danger' : '';
     const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.8em;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
     
-    // --- 在庫表示の切り分け ---
-    let stockDisplay = "";
-    if (pageId === 'pageAll') {
-      // 全店舗リスト用：ボタンを押すまで非表示。data-jan と data-shop で紐付け
-      stockDisplay = `<div class="stock-badge stock-val" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`;
+    let rowContent = "";
+    if (isScanMode) {
+      // 【期限チェックモード】（これまでのロジックを維持）
+      let stockDisplay = (pageId === 'pageAll') 
+        ? `<div class="stock-badge stock-val" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
+        : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
+
+      rowContent = `
+        <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
+        <td>
+          <div class="jan-text">${item.barcode}</div>
+          <b>${item.itemName || item.name || "名称不明"}</b>
+          ${stockDisplay}
+        </td>
+        <td style="text-align:center;font-weight:bold;">${item.qty}</td>`;
     } else {
-      // 在庫チェック・登録リスト用：最初から表示
-      stockDisplay = `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
+      // 【価格検索モード】（ご指定のレイアウト：在庫状況 / JAN・メーカー・商品名 / 参考価格）
+      const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
+      const makerName = item.brand || item.maker || ""; // G列のメーカー情報
+      
+      rowContent = `
+        <td style="text-align:center; font-size:0.85em;">
+          ${shopHeader}
+          <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
+        </td>
+        <td>
+          <div class="jan-text">${item.barcode}</div>
+          <div style="font-size:0.75em; color:#7f8c8d;">${makerName}</div>
+          <b style="font-size:0.95em;">${item.itemName || item.name || "名称不明"}</b>
+        </td>
+        <td style="text-align:center; color:#e67e22; font-weight:bold;">
+          ${priceDisp}
+        </td>`;
     }
     
     html += `<tr class="${rowClass}">
@@ -613,19 +650,12 @@ function renderList(pageId, list) {
                data-jan="${item.barcode}" 
                data-shop="${item.shopCode}">
       </td>
-      <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
-      <td>
-        <div class="jan-text">${item.barcode}</div>
-        <b>${item.itemName || item.name || "名称不明"}</b>
-        ${stockDisplay}
-      </td>
-      <td style="text-align:center;font-weight:bold;">${item.qty}</td>
+      ${rowContent}
     </tr>`;
   });
   
   view.innerHTML = html + '</table>';
 }
-  
 
 async function fetchSelectedStocks() {
   const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);

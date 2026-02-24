@@ -293,13 +293,7 @@ async function toggleScanner() {
   const btn = document.getElementById('btnToggleScan');
   if (isScanning) {
     stopAllCameras();
-    // 念押しでここでもボタンを書き換える
-    if (btn) {
-      btn.innerText = "📷 スキャンを開始";
-      btn.className = "btn-main btn-start";
-    }
   } else {
-    // スキャン開始
     await startCamera();
   }
 }
@@ -322,32 +316,24 @@ async function startCamera() {
     
     isScanning = true;
     
-    // ここでボタンを「停止」に変える
     if (btn) {
       btn.innerText = "🛑 停止";
       btn.className = "btn-main btn-stop";
     }
 
-// startCamera 関数内のこの部分を修正
-codeReader.decodeContinuously(videoEl, (result, err) => {
-  if (result && isScanning) {
-    // 1. まずフラグを即座に折る
-    isScanning = false;
-    
-    // 2. 物理的にカメラの解析を止める（これが重要！）
-    codeReader.reset(); 
-    
-    // 3. UIを「停止」状態に戻す
-    const btn = document.getElementById('btnToggleScan');
-    if (btn) {
-      btn.innerText = "📷 スキャンを開始";
-      btn.className = "btn-main btn-start";
-    }
-
-    // 4. 処理へ進む
-    processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
-  }
-});
+    codeReader.decodeContinuously(videoEl, (result, err) => {
+      if (result && isScanning) {
+        isScanning = false;
+        codeReader.reset(); 
+        
+        const btnInner = document.getElementById('btnToggleScan');
+        if (btnInner) {
+          btnInner.innerText = "📷 スキャンを開始";
+          btnInner.className = "btn-main btn-start";
+        }
+        processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
+      }
+    });
   } catch (err) {
     console.error(err);
     alert("カメラを起動できません");
@@ -359,8 +345,6 @@ codeReader.decodeContinuously(videoEl, (result, err) => {
  */
 function stopAllCameras() {
   isScanning = false;
-  
-  // 1. ZXingの制御を完全にリセット
   try {
     codeReader.reset();
   } catch (e) { console.error("ZXing reset error:", e); }
@@ -369,31 +353,25 @@ function stopAllCameras() {
   if (videoEl && videoEl.srcObject) {
     const stream = videoEl.srcObject;
     const tracks = stream.getTracks();
-
     tracks.forEach(track => {
-      track.stop();         // トラックを停止
-      track.enabled = false; // 無効化
+      track.stop();
+      track.enabled = false;
     });
-
-    // 2. Safari対策：srcObjectをnullにするだけでなく、空にする処理
     videoEl.srcObject = null;
-    videoEl.load(); // ビデオ要素をリセットしてストリームを完全に切り離す
+    videoEl.load();
   }
 
-  // 3. UI表示を戻す
   const btn = document.getElementById('btnToggleScan');
   if (btn) {
     btn.innerText = "📷 スキャンを開始";
     btn.className = "btn-main btn-start";
   }
-  
-  console.log("Camera hardware released.");
 }
 
 async function processShopCode() {
   const input = document.getElementById('shopInput');
   const display = document.getElementById('shopDisplay');
-  const lockMsg = document.getElementById('shopLockMessage'); // ★これが必要です！
+  const lockMsg = document.getElementById('shopLockMessage');
   const code = input.value.trim();
   
   if (!code || input.readOnly) return;
@@ -403,62 +381,42 @@ async function processShopCode() {
 
   try {
     const name = await callGAS("getStoreName", { code });
-    
     if (name) {
       currentShopName = name;
       display.innerText = name;
       display.style.color = "#2c3e50"; 
-      
-      // ★ ここで赤い警告を消す
       if (lockMsg) lockMsg.style.display = "none"; 
-      
       input.readOnly = true; 
       input.style.backgroundColor = "#e8f5e9";
-      
       const scanArea = document.getElementById('scanActionArea');
       if (scanArea) scanArea.style.display = "block";
     } else {
       display.innerText = "未登録の店舗";
       display.style.color = "#e74c3c";
-      // 失敗した時は赤い警告を念のため出しておく
       if (lockMsg) lockMsg.style.display = "block"; 
       input.value = "";
     }
   } catch (e) {
     display.innerText = "通信エラー";
-    console.error(e);
   }
 }
 
 function reEnterShopCode() {
-  // カメラが動いていたら止める（安全のため）
   stopAllCameras(); 
-  
   const input = document.getElementById('shopInput');
   const display = document.getElementById('shopDisplay');
-
-  // --- ロックを解除して初期化 ---
   input.readOnly = false;
   input.disabled = false;
   input.value = "";
-  input.style.backgroundColor = "#fff"; // 背景色を白に戻す
-  input.style.color = "#000";
+  input.style.backgroundColor = "#fff";
   display.innerText = "店コードを入力";
-  // ★ 再入力のときは、また赤い案内を表示させる
   const lockMsg = document.getElementById('shopLockMessage');
   if (lockMsg) lockMsg.style.display = "block";
-
-  // スキャン画面などをリセット
   resetUI(true);
-
-  // 0.1秒後にフォーカス（数字キーボードを強制的に出す）
-  setTimeout(() => {
-    input.focus();
-  }, 100);
+  setTimeout(() => { input.focus(); }, 100);
 }
 
 async function processUnifiedFlow(code, mode) {
-  // カメラ停止中、または照会中なら何もしない
   if (!code || isFetching) return;
   stopAllCameras();
   currentCode = code;
@@ -480,7 +438,7 @@ async function processUnifiedFlow(code, mode) {
   const res = await callGAS("getProductMasterInfo", { code });
   if (!isFetching) return;
   isFetching = false;
-  if (!res) { alert("商品未登録"); resetUI(); return; }
+  if (!res) { alert("商品未登録"); resetUI(false); return; }
 
   if (isScanMode) {
     document.getElementById('itemNameDisplay').innerText = res.name;
@@ -501,15 +459,11 @@ async function processUnifiedFlow(code, mode) {
   }
 }
 
-// --- 登録ボタン内の処理 ---
 async function sendData() {
   const btn = document.getElementById('mainRegBtn');
-  if (btn.disabled) return; // すでに押されていたら何もしない
-
-  // 1. ボタンを無効化して半透明にする
+  if (btn.disabled) return;
   btn.disabled = true;
   btn.innerText = "⏳ 登録中...";
-
   try {
     const res = await callGAS("registerItem", { 
       shopCode: document.getElementById('shopInput').value, 
@@ -518,7 +472,6 @@ async function sendData() {
       qty: document.getElementById('qty').value, 
       expiryDate: document.getElementById('expiry').value 
     });
-
     if (res === "完了") { 
       btn.innerText = "✅ 登録完了"; 
       setTimeout(() => { resetUI(false); }, 500); 
@@ -528,19 +481,16 @@ async function sendData() {
       btn.innerText = "登録";
     }
   } catch (e) {
-    console.error(e);
     btn.disabled = false;
     btn.innerText = "登録";
   }
 }
+
 async function saveSearchPrice() {
   const btn = document.getElementById('mainSaveBtn');
   if (btn.disabled) return;
-
-  // 1. ボタンを無効化して半透明にする
   btn.disabled = true;
   btn.innerText = "⏳ 保存中...";
-
   const data = {
     name: document.getElementById('sDetailName').innerText,
     janCode: document.getElementById('sDetailJan').innerText,
@@ -550,14 +500,12 @@ async function saveSearchPrice() {
     description: document.getElementById('sDetailDesc').innerText,
     inStock: document.getElementById('sDetailStock').innerText
   };
-
   try {
     const res = await callGAS("savePriceCheckData", { 
       data, 
       shopCode: document.getElementById('shopInput').value, 
       shopName: currentShopName 
     });
-
     if (res === "完了") { 
       btn.innerText = "✅ 保存しました"; 
       setTimeout(() => { resetUI(false); }, 500); 
@@ -571,17 +519,10 @@ async function saveSearchPrice() {
   }
 }
 
-/**
- * 📋 リスト・在庫関連（あなたのロジックを100%継承）
- */
-//**
- * 📋 リスト・在庫関連（モード別・シート列構成完全対応版）
- */
 function renderList(pageId, list) {
   const view = document.getElementById('view_' + pageId);
   const bulkBtn = document.getElementById('btnComplete_' + pageId);
   const stockBtn = document.getElementById('btnStockAll');
-  
   const mode = document.getElementById('mainModeSelect').value;
   const isScanMode = (mode === 'scan');
 
@@ -597,10 +538,9 @@ function renderList(pageId, list) {
     stockBtn.style.display = isScanMode ? 'block' : 'none';
   }
 
-  // --- ヘッダーの切り替え ---
   let headerHtml = isScanMode 
     ? `<tr><th>選択</th><th>期限</th><th>商品情報</th><th>数</th></tr>`
-    : `<tr><th>選択</th><th>EC在庫</th><th>商品情報</th><th>EC価格</th></tr>`; // 価格モード用ヘッダー
+    : `<tr><th>選択</th><th>EC在庫</th><th>商品情報</th><th>EC価格</th></tr>`;
 
   let html = `<table class="list-table">${headerHtml}`;
   
@@ -610,11 +550,9 @@ function renderList(pageId, list) {
     
     let rowContent = "";
     if (isScanMode) {
-      // 【期限チェックモード】（これまでのロジックを維持）
       let stockDisplay = (pageId === 'pageAll') 
-        ? `<div class="stock-badge stock-val" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
+        ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
         : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
-
       rowContent = `
         <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
         <td>
@@ -624,10 +562,8 @@ function renderList(pageId, list) {
         </td>
         <td style="text-align:center;font-weight:bold;">${item.qty}</td>`;
     } else {
-      // 【価格検索モード】（ご指定のレイアウト：在庫状況 / JAN・メーカー・商品名 / 参考価格）
       const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
-      const makerName = item.brand || item.maker || ""; // G列のメーカー情報
-      
+      const makerName = item.brand || item.maker || "";
       rowContent = `
         <td style="text-align:center; font-size:0.85em;">
           ${shopHeader}
@@ -638,55 +574,40 @@ function renderList(pageId, list) {
           <div style="font-size:0.75em; color:#7f8c8d;">${makerName}</div>
           <b style="font-size:0.95em;">${item.itemName || item.name || "名称不明"}</b>
         </td>
-        <td style="text-align:center; color:#e67e22; font-weight:bold;">
-          ${priceDisp}
-        </td>`;
+        <td style="text-align:center; color:#e67e22; font-weight:bold;">${priceDisp}</td>`;
     }
     
     html += `<tr class="${rowClass}">
       <td style="text-align:center;">
-        <input type="checkbox" class="bulk-check" 
-               data-id="${item.recordId}" 
-               data-jan="${item.barcode}" 
-               data-shop="${item.shopCode}">
+        <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}">
       </td>
       ${rowContent}
     </tr>`;
   });
-  
   view.innerHTML = html + '</table>';
 }
 
 async function fetchSelectedStocks() {
   const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);
   if (checks.length === 0) { alert("商品を選択してください"); return; }
-  
-  // 店コードごとに商品IDを分けるグループ化
   const shopMap = {};
   checks.forEach(c => {
     const s = c.getAttribute('data-shop');
     const id = c.getAttribute('data-id');
     if (!shopMap[s]) shopMap[s] = [];
     shopMap[s].push(id);
-    c.checked = false; // 処理開始時にチェックを外す
+    c.checked = false;
   });
-
-  // 店ごとに一括リクエストを飛ばす
   for (const shopCode of Object.keys(shopMap)) {
     const ids = shopMap[shopCode];
-    
-    // 表示を「取得中...」に変える
     ids.forEach(id => {
       document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
         el.innerText = "取得中...";
         el.style.display = "inline-block";
       });
     });
-
     try {
-      // ★ ここで「その店のコード」と「その店の商品のIDリスト」を投げる
       const res = await callGAS("getBatchStocksByIds", { shopCode, recordIds: ids });
-      
       if (res) {
         Object.keys(res).forEach(id => {
           document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
@@ -695,84 +616,60 @@ async function fetchSelectedStocks() {
           });
         });
       }
-    } catch (e) {
-      console.error("Stock fetch error for shop " + shopCode, e);
-    }
+    } catch (e) { console.error(e); }
   }
 }
 
 async function bulkDelete(pageId) {
+  const mode = document.getElementById('mainModeSelect').value;
   const checks = document.querySelectorAll(`#view_${pageId} .bulk-check:checked`);
   if(checks.length === 0) return alert("商品を選択してください");
   if(!confirm(checks.length + "件の処理を完了しますか？")) return;
-  const res = await callGAS("deleteRowsBulk", { ids: Array.from(checks).map(c => c.getAttribute('data-id')) });
+  
+  // モードによってGASの関数を切り替え
+  const action = (mode === 'scan') ? "deleteRowsBulk" : "deletePriceRowsBulk";
+  const res = await callGAS(action, { ids: Array.from(checks).map(c => c.getAttribute('data-id')) });
   if (res) { alert("完了しました"); refreshPage(pageId); }
 }
 
-
- /* UIのリセット
- * @param {boolean} shouldStopCamera - trueならカメラを物理的に止める
- */
-/**
- * UIのリセット
- * @param {boolean} shouldStopCamera - trueならカメラを物理的に止める
- */
 function resetUI(shouldStopCamera = false) {
   isFetching = false;
-
-  // 1. カメラの物理的な制御
-  // shouldStopCameraがfalse（戻る・取消）なら、startCameraを呼んでスキャンを即座に再開
   if (shouldStopCamera) {
     stopAllCameras(); 
   } else {
     startCamera(); 
   }
-
-  // 2. UIエリアの表示・非表示
   document.getElementById('editArea').style.display = 'none';
   document.getElementById('searchDetailArea').style.display = 'none';
   document.getElementById('manualJan').value = ""; 
-
-  // 3. メインボタンエリアの復元
   if (currentShopName) {
     document.getElementById('scanActionArea').style.display = 'block';
   }
-  
-  // 4. ボタン状態の初期化
   const regBtn = document.getElementById('mainRegBtn');
   const saveBtn = document.getElementById('mainSaveBtn');
   if (regBtn) { regBtn.disabled = true; regBtn.innerText = "登録"; }
   if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "保存"; }
 }
-  
-function showPage(pageId) {
-  try {
-    stopAllCameras(); // ここでエラーが出ても止まらないようにする
-  } catch(e) { console.error(e); }
 
-  if (pageId === 'pageScan') resetUI(false);
-  
-  // ページの表示切り替え（unifiedPageへの対応）
+function showPage(pageId) {
+  try { stopAllCameras(); } catch(e) {}
+  if (pageId === 'pageScan') {
+    resetUI(false);
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const targetId = (pageId === 'pageScan') ? 'unifiedPage' : pageId;
   const targetEl = document.getElementById(targetId);
   if (targetEl) targetEl.classList.add('active');
 
-  // ナビゲーションのactive切り替え
   const navs = document.querySelectorAll('.nav-item');
   const pages = ['pageScan','pageList','pageSummary','pageAll'];
   navs.forEach((n, i) => n.classList.toggle('active', pages[i] === pageId));
-  
-  // データの自動読み込み
   refreshPage(pageId);
   scrollToTop();
 }
 
-/**
- * 🛠 その他補助（あなたのロジックを継承）
- */
 function handleModeChange() { 
-  stopAllCameras(); // モードを変えたら一度カメラを完全に切る
+  stopAllCameras();
   resetUI(true); 
   const mode = document.getElementById('mainModeSelect').value; 
   document.getElementById('manualConfirmBtn').innerText = (mode === 'scan') ? "確認" : "検索"; 
@@ -782,25 +679,46 @@ function handleModeChange() {
 function handleManualUnified() { const code = document.getElementById('manualJan').value.trim(); if (code) processUnifiedFlow(code, document.getElementById('mainModeSelect').value); }
 function handleScroll() { const btn = document.getElementById('backToTop'); if (btn) btn.style.display = (window.pageYOffset > 300) ? 'flex' : 'none'; }
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
-function refreshPage(pageId) { if(pageId === 'pageList') showAlertList(); else if(pageId === 'pageSummary') loadShopDetail(); else if(pageId === 'pageAll') loadAllProducts(); }
-// 在庫チェック画面
+
+function refreshPage(pageId) { 
+  const mode = document.getElementById('mainModeSelect').value;
+  if(pageId === 'pageList') {
+    showAlertList(); 
+  } else if(pageId === 'pageSummary') {
+    // モードによって取得先を変える
+    if (mode === 'scan') {
+      loadShopDetail();
+    } else {
+      loadPriceCheckDetail();
+    }
+  } else if(pageId === 'pageAll') {
+    loadAllProducts(); 
+  }
+}
+
 function showAlertList() {
-  const shopCode = document.getElementById('shopInput').value; // ここを確実に取る
+  const shopCode = document.getElementById('shopInput').value;
   const days = document.getElementById('periodSelect').value;
   if(!shopCode) { alert("店舗コードを入力してください"); return; }
-
   callGAS("getAlertList", { shopCode, days }).then(l => renderList('pageList', l));
 }
-  
-// 登録リスト画面
+
 function loadShopDetail() {
   const shopCode = document.getElementById('shopInput').value;
   if(!shopCode) return;
-
   callGAS("getShopDetailList", { shopCode }).then(l => renderList('pageSummary', l));
 }
-  
+
+// 価格検索リストの読み込み
+function loadPriceCheckDetail() {
+  const shopCode = document.getElementById('shopInput').value;
+  if(!shopCode) return;
+  callGAS("getPriceCheckList", { shopCode }).then(l => renderList('pageSummary', l));
+}
+
 function loadAllProducts() { callGAS("getAllProductList").then(l => renderList('pageAll', l)); }
+
+window.onscroll = handleScroll;
 </script>
 </body>
 </html>

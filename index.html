@@ -337,24 +337,26 @@ async function startCamera() {
  */
 function stopAllCameras() {
   isScanning = false;
-  // 1. ZXingの動作を完全に止める
+  // 1. ZXingの連続スキャンを完全にリセット
   codeReader.reset();
   
   const videoEl = document.getElementById('video');
   if (videoEl && videoEl.srcObject) {
-    const tracks = videoEl.srcObject.getTracks();
-    tracks.forEach(track => track.stop()); // レンズの電源を切る
+    const stream = videoEl.srcObject;
+    const tracks = stream.getTracks();
+    tracks.forEach(track => {
+      track.stop(); // カメラの電源を落とす
+      console.log("カメラトラックを停止しました");
+    });
     videoEl.srcObject = null;
   }
   
+  // ボタン表示を戻す
   const btn = document.getElementById('btnToggleScan');
   if (btn) {
     btn.innerText = "📷 スキャンを開始";
     btn.className = "btn-main btn-start";
   }
-  
-  // スキャン中だった通信も強制中断させるためのフラグ
-  isFetching = false;
 }
 
 async function processShopCode() {
@@ -478,11 +480,13 @@ function renderList(pageId, list) {
   : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
     
     html += `<tr class="${rowClass}">
+// renderList内を以下のように修正（itemName と name どちらが来てもいいようにする）
+html += `<tr class="${rowClass}">
   <td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>
-      <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
-      <td><div class="jan-text">${item.barcode}</div><b>${item.name || item.itemName}</b>${stockDisplay}</td>
-      <td style="text-align:center;font-weight:bold;">${item.qty}</td>
-    </tr>`;
+  <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
+  <td><div class="jan-text">${item.barcode}</div><b>${item.itemName || item.name || "名称不明"}</b>${stockDisplay}</td>
+  <td style="text-align:center;font-weight:bold;">${item.qty}</td>
+</tr>`;
   });
   view.innerHTML = html + '</table>';
 }

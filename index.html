@@ -144,7 +144,7 @@ button:disabled {
          inputmode="numeric" 
          pattern="[0-9]*"
          placeholder="コード" 
-         oninput="processShopCode()" 
+         onchange="processShopCode()" 
          style="width: 80px; height: 35px; font-size: 1.0em; text-align: center; border: 2px solid #3498db; border-radius: 5px;">
   
   <span id="shopDisplay" style="margin-left:8px; font-weight:bold; color: #2c3e50;">店コードを入力</span>
@@ -386,29 +386,35 @@ async function processShopCode() {
   const display = document.getElementById('shopDisplay');
   const code = input.value.trim();
   
+  // 4桁などの決まった桁数があるなら「if (code.length < 4) return;」などを入れるとより安定します
   if (!code) return;
   
+  // 照会中に何度も実行されないように一時的にロック
+  if (input.readOnly) return; 
+
   display.innerText = "照会中...";
   
-  const name = await callGAS("getStoreName", { code });
-  
-  if (name) {
-    currentShopName = name;
-    display.innerText = name;
+  try {
+    const name = await callGAS("getStoreName", { code });
     
-    // --- ここでロックをかける ---
-    input.readOnly = true; 
-    input.style.backgroundColor = "#e8f5e9"; // 薄い緑色にして確定を表現
-    input.style.color = "#666"; // 文字色を少し薄く
-    
-    // スキャンエリアを表示（未表示の場合）
-    const scanArea = document.getElementById('scanActionArea');
-    if (scanArea) scanArea.style.display = "block";
-    
-  } else {
-    display.innerText = "未登録の店舗";
-    input.value = "";
-    input.readOnly = false;
+    if (name) {
+      currentShopName = name;
+      display.innerText = name;
+      
+      // ★ ここが重要：値(input.value)はそのまま保持する！
+      input.readOnly = true; 
+      input.style.backgroundColor = "#e8f5e9"; // 確定したら色を変える
+      
+      const scanArea = document.getElementById('scanActionArea');
+      if (scanArea) scanArea.style.display = "block";
+    } else {
+      display.innerText = "未登録の店舗";
+      // 失敗した時だけクリアする
+      input.value = ""; 
+    }
+  } catch (e) {
+    console.error(e);
+    display.innerText = "通信エラー";
   }
 }
 

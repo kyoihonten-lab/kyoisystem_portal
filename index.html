@@ -140,11 +140,19 @@ button:disabled {
 
 <div class="header">商品管理ポータル</div>
 <div class="shop-area">
-  <input type="number" id="shopInput" inputmode="numeric" placeholder="コード" 
-         onchange="processShopCode()" 
+  <input type="number" id="shopInput" 
+         inputmode="numeric" 
+         pattern="[0-9]*"
+         placeholder="コード" 
+         oninput="processShopCode()" 
          style="width: 80px; height: 35px; font-size: 1.0em; text-align: center; border: 2px solid #3498db; border-radius: 5px;">
+  
   <span id="shopDisplay" style="margin-left:8px; font-weight:bold; color: #2c3e50;">店コードを入力</span>
-  <button class="btn-change" onclick="reEnterShopCode()" style="margin-left:auto; padding:5px 10px; background:#3498db; color:white; border:none; border-radius:4px;">入力</button>
+  
+  <button id="shopSubmitBtn" class="btn-change" onclick="reEnterShopCode()" 
+          style="margin-left:auto; padding:5px 10px; background:#3498db; color:white; border:none; border-radius:4px;">
+    再入力
+  </button>
 </div>
 
 <div style="background: #fff; padding: 10px; border-bottom: 1px solid #ddd;">
@@ -392,7 +400,23 @@ async function processShopCode() {
   }
 }
 
-function reEnterShopCode() { stopAllCameras(); const input = document.getElementById('shopInput'); input.readOnly = false; input.value = ""; input.style.backgroundColor = "#fff"; input.focus(); }
+function reEnterShopCode() {
+  stopAllCameras(); 
+  const input = document.getElementById('shopInput');
+  const display = document.getElementById('shopDisplay');
+
+  // 1. ロックを解除して値をクリア
+  input.readOnly = false;
+  input.disabled = false;
+  input.value = "";
+  input.style.backgroundColor = "#fff";
+  display.innerText = "店コードを入力";
+
+  // 2. 0.1秒後にフォーカス。これで数字キーボードが強制的に立ち上がります
+  setTimeout(() => {
+    input.focus();
+  }, 100);
+}
 
 async function processUnifiedFlow(code, mode) {
   if (!code) return;

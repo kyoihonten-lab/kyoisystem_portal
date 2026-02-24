@@ -337,26 +337,35 @@ async function startCamera() {
  */
 function stopAllCameras() {
   isScanning = false;
-  // 1. ZXingの連続スキャンを完全にリセット
-  codeReader.reset();
   
+  // 1. ZXingの制御を完全にリセット
+  try {
+    codeReader.reset();
+  } catch (e) { console.error("ZXing reset error:", e); }
+
   const videoEl = document.getElementById('video');
   if (videoEl && videoEl.srcObject) {
     const stream = videoEl.srcObject;
     const tracks = stream.getTracks();
+
     tracks.forEach(track => {
-      track.stop(); // カメラの電源を落とす
-      console.log("カメラトラックを停止しました");
+      track.stop();         // トラックを停止
+      track.enabled = false; // 無効化
     });
+
+    // 2. Safari対策：srcObjectをnullにするだけでなく、空にする処理
     videoEl.srcObject = null;
+    videoEl.load(); // ビデオ要素をリセットしてストリームを完全に切り離す
   }
-  
-  // ボタン表示を戻す
+
+  // 3. UI表示を戻す
   const btn = document.getElementById('btnToggleScan');
   if (btn) {
     btn.innerText = "📷 スキャンを開始";
     btn.className = "btn-main btn-start";
   }
+  
+  console.log("Camera hardware released.");
 }
 
 async function processShopCode() {
@@ -469,22 +478,23 @@ function renderList(pageId, list) {
     if(stockBtn) stockBtn.style.display = 'none';
     return;
   }
-
+  
   if(bulkBtn) bulkBtn.style.display = 'block';
   if(pageId === 'pageAll' && stockBtn) stockBtn.style.display = 'block';
 
   let html = `<table class="list-table"><tr><th>選択</th><th>期限</th><th>商品情報</th><th>数</th></tr>`;
-
+  
   list.forEach(item => {
     const rowClass = item.isExpired ? 'danger' : '';
-    const shopHeader = item.shopCode ? `<div class="shop-info">${item.shopCode}　${item.shopName}</div>` : '';
+    // 店コードと店名を表示
+    const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.8em;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
     
-    // 在庫表示の切り分け
+    // 在庫表示部分：一意のrecordIdをIDとして持たせることで、誤表示を防ぐ
+    let stockValue = item.dataStock || '0';
     let stockDisplay = (pageId === 'pageAll') 
       ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-shop="${item.shopCode}" style="display:none;"></div>`
-      : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
+      : `<div class="stock-badge">理論在庫: ${stockValue}</div>`;
     
-    // テーブル行の組み立て
     html += `<tr class="${rowClass}">
       <td style="text-align:center;">
         <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}">
@@ -498,7 +508,7 @@ function renderList(pageId, list) {
       <td style="text-align:center;font-weight:bold;">${item.qty}</td>
     </tr>`;
   });
-
+  
   view.innerHTML = html + '</table>';
 }
 

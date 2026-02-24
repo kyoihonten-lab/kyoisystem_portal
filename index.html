@@ -1,1 +1,401 @@
-test
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>商品管理ポータル</title>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <style>
+    /* --- 基本設定 --- */
+    body { font-family: sans-serif; margin: 0; padding: 0 0 80px 0; background-color: #f4f7f6; -webkit-tap-highlight-color: transparent; }
+    .page { display: none; padding: 0; width: 100%; box-sizing: border-box; }
+    .active { display: block; }
+    .header { background: #3498db; color: white; padding: 10px; font-weight: bold; font-size: 1.2em; position: sticky; top: 0; z-index: 100; text-align:center; }
+    .shop-area { background: #fff; padding: 10px; border-bottom: 2px solid #ddd; display: flex; align-items: center; }
+    #shopInput { width: 80px; height: 35px; font-size: 1.0em; text-align: center; border: 2px solid #3498db; background: #fff; border-radius: 4px; }
+    .shop-display { margin-left: 10px; font-weight: bold; color: #2c3e50; font-size: 0.95em; flex-grow: 1; }
+    .shop-error { color: #e74c3c; }
+    .btn-main { width: 100%; padding: 15px; font-size: 1.1em; border: none; border-radius: 8px; cursor: pointer; color: white; margin-bottom: 10px; font-weight: bold; }
+    .btn-start { background-color: #3498db; }
+    .btn-stop { background-color: #e74c3c; }
+    .btn-reg { background-color: #2ecc71; }
+    .btn-search { background-color: #9b59b6; }
+    .nav-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: #fff; border-top: 1px solid #ddd; display: flex; z-index: 1000; }
+    .nav-item { flex: 1; text-align: center; padding: 10px 0; font-size: 0.8em; color: #7f8c8d; }
+    .nav-active { color: #3498db; font-weight: bold; }
+    #video { width: 100%; border-radius: 8px; background: #000; }
+    .edit-container { padding: 15px; background: #fff; border-radius: 12px; margin: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .input-group { margin-bottom: 15px; }
+    .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #34495e; }
+    .input-group input, .input-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1em; box-sizing: border-box; }
+    .list-item { background: #fff; margin: 10px; padding: 15px; border-radius: 8px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .expired-badge { background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 5px; }
+  </style>
+</head>
+<body onscroll="handleScroll()">
+
+  <div class="header">商品管理ポータル (External)</div>
+
+  <div class="shop-area">
+    <input type="number" id="shopInput" placeholder="店番" inputmode="numeric">
+    <div id="shopDisplay" class="shop-display">コード入力待ち...</div>
+  </div>
+
+  <div id="pageScan" class="page active">
+    <div style="padding:10px; background:#fff; border-bottom:1px solid #eee;">
+      <select id="mainModeSelect" style="width:100%; padding:10px; font-size:1.1em; border:2px solid #3498db; border-radius:8px;">
+        <option value="scan">📅 期限登録モード</option>
+        <option value="search">🔍 商品検索・価格調査</option>
+      </select>
+    </div>
+
+    <div id="scanDefaultArea" style="padding:20px; text-align:center;">
+      <div id="videoContainer" style="position:relative; margin-bottom:15px; background:#000; border-radius:8px; overflow:hidden;">
+        <video id="video" playsinline></video>
+      </div>
+      <button id="btnToggleScan" class="btn-main btn-start" onclick="toggleScanner()">📷 スキャンを開始</button>
+      
+      <div id="shopLockMessage" style="margin-top:10px; color:#e74c3c; font-size:0.9em; font-weight:bold;">※店コードを確定させてください</div>
+      
+      <div id="scanActionButtons" style="display:none; margin-top:15px;">
+        <div style="display:flex; gap:10px;">
+          <input type="number" id="manualJan" placeholder="JAN手入力" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:6px;" inputmode="numeric">
+          <button onclick="handleManualUnified()" style="padding:10px 20px; background:#34495e; color:white; border:none; border-radius:6px;">確定</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="editArea" class="edit-container" style="display:none;">
+      <h3 id="itemNameDisplay" style="margin-top:0; color:#2c3e50;">商品名を取得中...</h3>
+      <p id="janDisplay" style="color:#7f8c8d; font-size:0.9em; margin-bottom:15px;"></p>
+      <div class="input-group">
+        <label>賞味/消費期限</label>
+        <input type="date" id="expiryInput">
+      </div>
+      <div class="input-group">
+        <label>数量</label>
+        <input type="number" id="qtyInput" value="1" inputmode="numeric">
+      </div>
+      <button id="mainRegBtn" class="btn-main btn-reg" onclick="registerItem()">この内容で登録する</button>
+      <button class="btn-main" style="background:#95a5a6;" onclick="resetToScan()">キャンセル</button>
+    </div>
+
+    <div id="searchDetailArea" class="edit-container" style="display:none;">
+      <div style="display:flex; gap:15px; margin-bottom:15px;">
+        <img id="sDetailImage" src="" style="width:80px; height:80px; object-fit:contain; border:1px solid #eee;">
+        <div>
+          <h3 id="sDetailName" style="margin:0; font-size:1.1em;"></h3>
+          <p id="sDetailJanTop" style="margin:5px 0; color:#7f8c8d; font-size:0.8em;"></p>
+          <p style="margin:0; color:#e67e22; font-weight:bold; font-size:1.2em;">¥<span id="sDetailPrice"></span></p>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>在庫状況</label>
+        <div id="sDetailStock" style="padding:8px; background:#f8f9fa; border-radius:4px; font-weight:bold;"></div>
+      </div>
+      <div class="input-group">
+        <label>ブランド/メーカー</label>
+        <div id="sDetailBrand" style="font-size:0.9em;"></div>
+      </div>
+      <div class="input-group">
+        <label>JANコード</label>
+        <div id="sDetailJan" style="font-size:0.9em;"></div>
+      </div>
+      <div class="input-group">
+        <label>商品説明</label>
+        <div id="sDetailDesc" style="font-size:0.85em; color:#666; max-height:100px; overflow-y:auto; background:#fdfdfd; padding:5px; border:1px solid #eee;"></div>
+      </div>
+      <button id="mainSaveBtn" class="btn-main btn-search" onclick="savePriceCheck()">調査結果を保存</button>
+      <button class="btn-main" style="background:#95a5a6;" onclick="resetSearch()">戻る</button>
+    </div>
+  </div>
+
+  <div id="pageList" class="page">
+    <div style="padding:10px; background:#fff; border-bottom:1px solid #ddd;">
+      <select id="periodSelect" onchange="showAlertList()" style="width:100%; padding:10px; border:1px solid #3498db; border-radius:6px;">
+        <option value="30">1ヶ月以内</option>
+        <option value="60">2ヶ月以内</option>
+        <option value="90">3ヶ月以内</option>
+      </select>
+    </div>
+    <div id="listContainer"></div>
+    <div style="padding:15px;"><button class="btn-main" style="background:#e74c3c;" onclick="deleteSelected()">選択した項目を削除</button></div>
+  </div>
+
+  <div id="pageSummary" class="page">
+    <div id="summaryContainer"></div>
+  </div>
+
+  <div id="pageAll" class="page">
+    <div id="allContainer"></div>
+  </div>
+
+  <div class="nav-bar">
+    <div class="nav-item nav-active" id="nav-pageScan" onclick="showPage('pageScan')">🏠<br>スキャン</div>
+    <div class="nav-item" id="nav-pageList" onclick="showPage('pageList')">⚠️<br>期限注意</div>
+    <div class="nav-item" id="nav-pageSummary" onclick="showPage('pageSummary')">📊<br>店別</div>
+    <div class="nav-item" id="nav-pageAll" onclick="showPage('pageAll')">🌐<br>全店</div>
+  </div>
+
+<script>
+/**
+ * 🛠 設定：あなたのGASウェブアプリURLをここに貼ってください
+ */
+const GAS_URL = "https://script.google.com/macros/s/AKfycbx8gPAAtgcOql4IKNKpUp5VC8zzU2RLTYxZDIBCwP_L0QERG3tRaN7uccLYBVCH9tM/exec";
+
+let currentCode = "", currentShopName = "";
+let codeReader = new ZXing.BrowserBarcodeReader();
+let isScanning = false;
+let isFetching = false;
+
+/**
+ * 📡 外部GAS通信関数
+ */
+async function callGAS(action, params = {}) {
+  try {
+    const response = await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({ action, ...params })
+    });
+    return await response.json();
+  } catch (e) {
+    console.error("Communication Error:", e);
+    alert("GASとの通信に失敗しました。URLを確認してください。");
+    return null;
+  }
+}
+
+// 店コード照会
+document.getElementById('shopInput').addEventListener('blur', async function() {
+  const code = this.value.trim();
+  if (!code) return;
+  const display = document.getElementById('shopDisplay');
+  display.innerText = "照会中...";
+  
+  const name = await callGAS("getStoreName", { code });
+  if (name) { 
+    currentShopName = name; 
+    display.innerText = name; 
+    display.classList.remove('shop-error');
+    this.readOnly = true; 
+    document.getElementById('shopLockMessage').style.display = "none";
+    document.getElementById('scanActionButtons').style.display = "block";
+    const btn = document.getElementById('mainRegBtn');
+    if(btn) { btn.disabled = false; btn.style.opacity = "1"; }
+  } else {
+    display.innerText = "未登録の店舗です"; 
+    display.classList.add('shop-error');
+    this.value = "";
+  }
+});
+
+/**
+ * 📷 カメラ制御 (iPhone特化版)
+ */
+async function toggleScanner() { isScanning ? stopCamera() : startScanner(); }
+
+async function startScanner() {
+  const video = document.getElementById('video');
+  const btn = document.getElementById('btnToggleScan');
+  
+  try {
+    if (codeReader) await codeReader.reset();
+    
+    // 権限取得と再生
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+    await video.play(); // iPhoneではこれが重要
+
+    isScanning = true;
+    btn.innerText = "🛑 停止する";
+    btn.className = "btn-main btn-stop";
+    
+    codeReader.decodeFromVideoElement(video, (result, err) => {
+      if (result && isScanning) {
+        isScanning = false;
+        stopCamera();
+        processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    alert("カメラを起動できません。GitHub Pagesのカメラ権限を許可してください。");
+  }
+}
+
+async function stopCamera() {
+  isScanning = false;
+  if (codeReader) await codeReader.reset();
+  const video = document.getElementById('video');
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  const btn = document.getElementById('btnToggleScan');
+  btn.innerText = "📷 スキャンを開始";
+  btn.className = "btn-main btn-start";
+}
+
+/**
+ * 🔄 メイン処理ロジック
+ */
+async function processUnifiedFlow(code, mode) {
+  if (!code) return;
+  currentCode = code;
+  isFetching = true;
+  const isScanMode = (mode === 'scan');
+
+  document.getElementById('scanDefaultArea').style.display = 'none';
+  if (isScanMode) {
+    document.getElementById('editArea').style.display = 'block';
+    document.getElementById('itemNameDisplay').innerText = "照会中...";
+    document.getElementById('janDisplay').innerText = "JAN: " + code;
+  } else {
+    document.getElementById('searchDetailArea').style.display = 'block';
+    document.getElementById('sDetailName').innerText = "照会中...";
+  }
+
+  const res = await callGAS("getProductMasterInfo", { code });
+  if (!isFetching) return;
+  isFetching = false;
+
+  if (!res) { alert("商品が見つかりません"); resetUI(); return; }
+  
+  if (isScanMode) {
+    document.getElementById('itemNameDisplay').innerText = res.name;
+    document.getElementById('mainRegBtn').disabled = false;
+  } else {
+    document.getElementById('sDetailName').innerText = res.name;
+    const dCode = res.janCode || code;
+    document.getElementById('sDetailJan').innerText = dCode;
+    document.getElementById('sDetailJanTop').innerText = dCode;
+    if (res.yahoo) {
+      document.getElementById('sDetailPrice').innerText = Number(res.yahoo.price).toLocaleString();
+      document.getElementById('sDetailImage').src = res.yahoo.imageUrl;
+      document.getElementById('sDetailBrand').innerText = res.yahoo.brand;
+      document.getElementById('sDetailDesc').innerText = res.yahoo.description;
+      document.getElementById('sDetailStock').innerText = res.yahoo.inStock;
+    }
+    document.getElementById('mainSaveBtn').disabled = false;
+  }
+}
+
+// 登録実行
+async function registerItem() {
+  const sCode = document.getElementById('shopInput').value;
+  const qty = document.getElementById('qtyInput').value;
+  const exp = document.getElementById('expiryInput').value;
+  if (!sCode || !qty || !exp) { alert("入力不足です"); return; }
+  
+  document.getElementById('mainRegBtn').disabled = true;
+  const res = await callGAS("registerItem", {
+    shopCode: sCode, shopName: currentShopName, barcode: currentCode, qty, expiryDate: exp
+  });
+  
+  if (res === "完了") {
+    alert("登録しました");
+    setTimeout(resetUI, 500);
+  }
+}
+
+// 調査結果保存
+async function savePriceCheck() {
+  const sCode = document.getElementById('shopInput').value;
+  const data = {
+    janCode: document.getElementById('sDetailJan').innerText,
+    name: document.getElementById('sDetailName').innerText,
+    brand: document.getElementById('sDetailBrand').innerText,
+    price: document.getElementById('sDetailPrice').innerText.replace(/,/g,''),
+    inStock: document.getElementById('sDetailStock').innerText,
+    description: document.getElementById('sDetailDesc').innerText
+  };
+  
+  document.getElementById('mainSaveBtn').disabled = true;
+  const res = await callGAS("savePriceCheckData", { data, shopCode: sCode, shopName: currentShopName });
+  if (res === "完了") {
+    alert("調査結果を保存しました");
+    setTimeout(resetUI, 500);
+  }
+}
+
+// UIリセット
+function resetUI() {
+  isFetching = false;
+  document.getElementById('editArea').style.display = 'none';
+  document.getElementById('searchDetailArea').style.display = 'none';
+  document.getElementById('scanDefaultArea').style.display = 'block';
+  document.getElementById('expiryInput').value = "";
+  document.getElementById('qtyInput').value = "1";
+  document.getElementById('manualJan').value = "";
+}
+
+function resetToScan() { resetUI(); }
+function resetSearch() { resetUI(); }
+
+// ページ切り替え
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('nav-active'));
+  document.getElementById('nav-' + pageId).classList.add('nav-active');
+  refreshPage(pageId);
+}
+
+async function refreshPage(pageId) {
+  const sCode = document.getElementById('shopInput').value;
+  if (pageId === 'pageList') {
+    const list = await callGAS("getAlertList", { shopCode: sCode, days: document.getElementById('periodSelect').value });
+    renderList('pageList', list);
+  } else if (pageId === 'pageSummary') {
+    const list = await callGAS("getShopDetailList", { shopCode: sCode });
+    renderList('pageSummary', list);
+  } else if (pageId === 'pageAll') {
+    const list = await callGAS("getAllProductList");
+    renderList('pageAll', list);
+  }
+}
+
+function renderList(pageId, list) {
+  let html = "";
+  const isDeleteMode = (pageId === 'pageList');
+  if (!list || list.length === 0) {
+    html = '<div style="text-align:center; padding:50px; color:#999;">データがありません</div>';
+  } else {
+    list.forEach(item => {
+      html += `<div class="list-item">
+        ${isDeleteMode ? `<input type="checkbox" name="delCheck" value="${item.recordId}" style="position:absolute; right:10px; top:15px; transform:scale(1.5);">` : ''}
+        <div style="font-weight:bold;">${item.name || item.itemName}</div>
+        <div style="font-size:0.85em; color:#666;">JAN: ${item.barcode}</div>
+        <div style="margin-top:5px; color:#e67e22; font-weight:bold;">
+          期限: ${item.expiry} ${item.isExpired ? '<span class="expired-badge">超過</span>' : ''}
+        </div>
+        <div style="font-size:0.9em;">数量: ${item.qty} / 在庫: ${item.dataStock || '0'}</div>
+        ${item.shopName ? `<div style="font-size:0.75em; color:#95a5a6; margin-top:5px;">店舗: ${item.shopCode} ${item.shopName}</div>` : ''}
+      </div>`;
+    });
+  }
+  const target = (pageId === 'pageList') ? 'listContainer' : (pageId === 'pageSummary' ? 'summaryContainer' : 'allContainer');
+  document.getElementById(target).innerHTML = html;
+}
+
+async function deleteSelected() {
+  const checks = document.querySelectorAll('input[name="delCheck"]:checked');
+  if (checks.length === 0) return;
+  if (!confirm("選択した項目を削除しますか？")) return;
+  const ids = Array.from(checks).map(c => c.value);
+  const res = await callGAS("deleteRowsBulk", { ids });
+  if (res === "処理完了") refreshPage('pageList');
+}
+
+function handleManualUnified() {
+  const code = document.getElementById('manualJan').value.trim();
+  if (!code) return;
+  processUnifiedFlow(code, document.getElementById('mainModeSelect').value);
+}
+
+function handleScroll() {} // 必要に応じて実装
+function showAlertList() { refreshPage('pageList'); }
+</script>
+</body>
+</html>

@@ -576,25 +576,21 @@ function getTableHeaderByMode(mode) {
 }
 
 /**
- * モード別の行（TR）生成
- */
-// 補助関数：行生成
-/**
- * モード別の行（TR）生成
- * 新しいモードを追加する場合は、else if (mode === 'new_mode') を追加してください。
+ * モード別の行（TR）生成（色付け・データ参照を修正）
  */
 function getRowHtmlByMode(mode, item, pageId) {
-  // どのモードでも使う共通パーツ
   const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.8em;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
-  const checkbox = `
-    <td style="text-align:center;">
-      <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}">
-    </td>`;
+  const checkbox = `<td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>`;
 
-  // --- 1. 期限管理モード ---
   if (mode === 'scan') {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const rowClass = (new Date(item.expiry) <= today) ? 'danger' : '';
+    // --- 【期限管理モード】当日以前を赤字にする ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // 時間を0時にリセット
+    const expiryDate = new Date(item.expiry);
+    
+    // 当日以前なら danger クラスを適用
+    const rowClass = (expiryDate <= today) ? 'danger' : '';
+
     const stockDisplay = (pageId === 'pageAll') 
       ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
       : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
@@ -611,10 +607,10 @@ function getRowHtmlByMode(mode, item, pageId) {
         <td style="text-align:center;font-weight:bold;">${item.qty}</td>
       </tr>`;
 
-  // --- 2. 価格検索モード ---
   } else if (mode === 'search') {
+    // --- 【商品検索モード】price_checkシートの内容を表示 ---
     const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
-    const makerName = item.brand || item.maker || ""; // メーカー・ブランド名を補強
+    const makerName = item.brand || item.maker || "";
 
     return `
       <tr>
@@ -631,11 +627,6 @@ function getRowHtmlByMode(mode, item, pageId) {
         <td style="text-align:center; color:#e67e22; font-weight:bold;">${priceDisp}</td>
       </tr>`;
   }
-  
-  // --- 3. その他のモード（将来用） ---
-  // else if (mode === 'inventory') { ... }
-
-  // どのモードにも合致しない場合の安全装置
   return ""; 
 }
 
@@ -710,19 +701,31 @@ function handleManualUnified() { const code = document.getElementById('manualJan
 function handleScroll() { const btn = document.getElementById('backToTop'); if (btn) btn.style.display = (window.pageYOffset > 300) ? 'flex' : 'none'; }
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
+/**
+ * 🔄 ページとデータの再読み込み（モード別のデータ取得を強制）
+ */
 function refreshPage(pageId) { 
   const mode = document.getElementById('mainModeSelect').value;
+  const shopCode = document.getElementById('shopInput').value;
+
   if(pageId === 'pageList') {
+    // 期限チェックタブ（期限管理モード専用）
     showAlertList(); 
   } else if(pageId === 'pageSummary') {
-    // モードによって取得先を変える
+    // 登録リストタブ（モードによって取得先を切り替え）
     if (mode === 'scan') {
-      loadShopDetail();
+      loadShopDetail(); // 期限管理シートから
     } else {
-      loadPriceCheckDetail();
+      loadPriceCheckDetail(); // price_checkシートから
     }
   } else if(pageId === 'pageAll') {
-    loadAllProducts(); 
+    // 全店舗リストタブ
+    if (mode === 'scan') {
+      callGAS("getAllProductList").then(l => renderList('pageAll', l));
+    } else {
+      // 価格検索の全件取得（shopCodeを空で送る）
+      callGAS("getPriceCheckList", { shopCode: "" }).then(l => renderList('pageAll', l));
+    }
   }
 }
 
@@ -739,7 +742,7 @@ function loadShopDetail() {
   callGAS("getShopDetailList", { shopCode }).then(l => renderList('pageSummary', l));
 }
 
-// 価格検索リストの読み込み
+// 価格検索リストの読み込み補助関数
 function loadPriceCheckDetail() {
   const shopCode = document.getElementById('shopInput').value;
   if(!shopCode) return;

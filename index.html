@@ -763,12 +763,15 @@ function showAlertList() {
   callGAS("getAlertList", { shopCode, days }).then(l => renderList('pageList', l));
 }
 
-// 商品検索モード専用：自店舗のリスト取得
+// 【修正版】商品検索モード専用：自店舗のリスト取得
 function loadPriceCheckDetail() {
   const shopCode = document.getElementById('shopInput').value;
-  // GAS側の getPriceCheckList は params.shopCode で動くように以前修正したので、引数をオブジェクトにする
   callGAS("getPriceCheckList", { shopCode: shopCode })
-    .then(list => renderList('pageSummary', list));
+    .then(list => {
+      // 自店分なので店コードは同じ。JANコード順に並べ替える
+      list.sort((a, b) => String(a.barcode).localeCompare(String(b.barcode)));
+      renderList('pageSummary', list);
+    });
 }
 
 // 価格検索リストの読み込み補助関数
@@ -778,19 +781,28 @@ function loadPriceCheckDetail() {
   callGAS("getPriceCheckList", { shopCode }).then(l => renderList('pageSummary', l));
 }
 
-// 全店舗リスト用：モードによって呼ぶGAS関数を切り分け
+// 【修正版】全店舗リスト用：モードによって呼ぶGAS関数とソートを切り分け
 function loadAllProducts() {
   const mode = document.getElementById('mainModeSelect').value;
   
   if (mode === 'scan') {
-    // 期限管理の全店分
+    // 期限管理：期限が近い順（serial順）
     callGAS("getAllProductList").then(list => renderList('pageAll', list));
   } else {
-    // 商品検索の全店分（shopCodeを空で送ることで全店分になる設計）
-    callGAS("getPriceCheckList", { shopCode: "" }).then(list => renderList('pageAll', list));
+    // 商品検索：店コード順 ＞ JANコード順に並べ替え
+    callGAS("getPriceCheckList", { shopCode: "" })
+      .then(list => {
+        list.sort((a, b) => {
+          // 1. まず店コードで比較
+          const shopComp = String(a.shopCode).localeCompare(String(b.shopCode));
+          if (shopComp !== 0) return shopComp;
+          // 2. 同じ店ならJANコードで比較
+          return String(a.barcode).localeCompare(String(b.barcode));
+        });
+        renderList('pageAll', list);
+      });
   }
 }
-
 window.onscroll = handleScroll;
 </script>
 </body>

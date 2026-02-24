@@ -679,9 +679,9 @@ async function bulkDelete(pageId) {
   if (res) { alert("完了しました"); refreshPage(pageId); }
 }
 
-  /**
- * UIのリセット（カメラを止めるかどうかを引数で制御）
- * @param {boolean} shouldStopCamera - trueならカメラを止める
+
+ /* UIのリセット
+ * @param {boolean} shouldStopCamera - trueならカメラを物理的に止める
  */
 /**
  * UIのリセット
@@ -690,39 +690,30 @@ async function bulkDelete(pageId) {
 function resetUI(shouldStopCamera = false) {
   isFetching = false;
 
+  // 1. カメラの物理的な制御
+  // shouldStopCameraがfalse（戻る・取消）なら、startCameraを呼んでスキャンを即座に再開
   if (shouldStopCamera) {
-    stopAllCameras(); // 物理的な停止（店コード変更時など）
+    stopAllCameras(); 
+  } else {
+    startCamera(); 
   }
 
-  // 入力エリアを隠す
+  // 2. UIエリアの表示・非表示
   document.getElementById('editArea').style.display = 'none';
   document.getElementById('searchDetailArea').style.display = 'none';
-  document.getElementById('manualJan').value = "";
-  
-  // 店舗が確定していれば、スキャンアクションエリアを表示
+  document.getElementById('manualJan').value = ""; 
+
+  // 3. メインボタンエリアの復元
   if (currentShopName) {
     document.getElementById('scanActionArea').style.display = 'block';
   }
   
+  // 4. ボタン状態の初期化
   const regBtn = document.getElementById('mainRegBtn');
   const saveBtn = document.getElementById('mainSaveBtn');
   if (regBtn) { regBtn.disabled = true; regBtn.innerText = "登録"; }
   if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "保存"; }
-
-  // ★ ここがポイント：カメラを止めない設定（false）で呼ばれた場合
-  // かつ、スキャン中フラグが立っているなら、スキャンループを再開させる
-  if (!shouldStopCamera && isScanning) {
-    const videoEl = document.getElementById('video');
-    // すでに動いているはずなので、デコード処理だけを再アタッチ
-    codeReader.decodeContinuously(videoEl, (result, err) => {
-      if (result && isScanning) {
-        isScanning = false;
-        codeReader.reset(); 
-        processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
-      }
-    });
-  }
-}// ← ここでしっかり閉じる
+}
   
 function showPage(pageId) {
   try {

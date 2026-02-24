@@ -583,22 +583,34 @@ function getRowHtmlByMode(mode, item, pageId) {
   const checkbox = `<td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>`;
 
   if (mode === 'scan') {
-    // --- 【期限管理モード】当日以前を赤字にする ---
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // 時間を0時にリセット
-    const expiryDate = new Date(item.expiry);
-    
-    // 当日以前なら danger クラスを適用
-    const rowClass = (expiryDate <= today) ? 'danger' : '';
+    today.setHours(0, 0, 0, 0);
 
+    // 1. GASから届いた yyyy/MM/dd を取得
+    const dateStr = item.expiry || ""; 
+    
+    // 2. 判定用にスラッシュをハイフンに置換（ブラウザの互換性のため）
+    // 2026/02/24 -> 2026-02-24 に変換して判定
+    const expiryDate = new Date(dateStr.replace(/\//g, '-'));
+
+    // 3. 当日以前なら danger クラス（赤字）を付与
+    let rowClass = "";
+    if (dateStr && !isNaN(expiryDate)) {
+      if (expiryDate <= today) {
+        rowClass = 'danger';
+      }
+    }
+    
     const stockDisplay = (pageId === 'pageAll') 
       ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
       : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
 
-    return `
+ return `
       <tr class="${rowClass}">
         ${checkbox}
-        <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
+        <td>
+          ${shopHeader}
+          <div style="font-size:0.9em;">${dateStr}</div> </td>
         <td>
           <div class="jan-text">${item.barcode}</div>
           <b>${item.itemName || item.name || "名称不明"}</b>
@@ -678,23 +690,27 @@ function showPage(pageId) {
   scrollToTop();
 }
 
-function handleModeChange() { 
+function handleModeChange() {
+  // 1. カメラ停止とUIリセット（既存の処理）
   stopAllCameras();
-  resetUI(true); 
-  const mode = document.getElementById('mainModeSelect').value; 
-  
-  // 1. 手入力エリアのボタンとヒントを切り替え
+  resetUI(true);
+
+  // 2. 表示エリアをクリアし「更新待ち」メッセージを出す（ここが重要）
+  const views = ['view_pageList', 'view_pageSummary', 'view_pageAll'];
+  views.forEach(id => {
+    const v = document.getElementById(id);
+    if (v) {
+      v.innerHTML = '<div style="padding:20px;text-align:center;color:#3498db;font-weight:bold;">' +
+                    'モードが変更されました。<br>「リスト表示」ボタンを押してデータを読み込んでください。</div>';
+    }
+  });
+
+  // 3. 手入力ボタンのテキスト変更
+  const mode = document.getElementById('mainModeSelect').value;
   const manualBtn = document.getElementById('manualConfirmBtn');
   const manualInput = document.getElementById('manualJan');
-  if (manualBtn) manualBtn.innerText = (mode === 'scan') ? "確認" : "検索"; 
-  if (manualInput) manualInput.placeholder = (mode === 'scan') ? "JAN手入力" : "検索JAN入力"; 
-
-  // 2. 各ページの「処理完了」ボタンのテキストも連動させると親切
-  const bulkButtons = ['btnComplete_pageList', 'btnComplete_pageSummary', 'btnComplete_pageAll'];
-  bulkButtons.forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.innerText = (mode === 'scan') ? "チェック商品の処理完了" : "チェック商品の削除";
-  });
+  if (manualBtn) manualBtn.innerText = (mode === 'scan') ? "確認" : "検索";
+  if (manualInput) manualInput.placeholder = (mode === 'scan') ? "JAN手入力" : "検索JAN入力";
 }
   
 function handleManualUnified() { const code = document.getElementById('manualJan').value.trim(); if (code) processUnifiedFlow(code, document.getElementById('mainModeSelect').value); }
@@ -704,28 +720,39 @@ function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 /**
  * 🔄 ページとデータの再読み込み（モード別のデータ取得を強制）
  */
-function refreshPage(pageId) { 
+function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
 
-  if(pageId === 'pageList') {
-    // 期限チェックタブ（期限管理モード専用）
-    showAlertList(); 
-  } else if(pageId === 'pageSummary') {
-    // 登録リストタブ（モードによって取得先を切り替え）
+  // 店コードがない場合は処理しない（全店舗リスト以外）
+  if (!shopCode && pageId !== 'pageAll') {
+    alert("店コードを入力してください");
+    return;
+  }
+
+  // 読み込み中表示
+  const targetView = document.getElementById('view_' + pageId);
+  if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
+
+  if (pageId === 'pageList') {
+    // 期限チェックタブ
     if (mode === 'scan') {
-      loadShopDetail(); // 期限管理シートから
+      showAlertList();
     } else {
-      loadPriceCheckDetail(); // price_checkシートから
+      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">期限登録モードに切り替えてください</div>';
     }
-  } else if(pageId === 'pageAll') {
+  } 
+  else if (pageId === 'pageSummary') {
+    // 登録済みリストタブ（自店分）
+    if (mode === 'scan') {
+      loadShopDetail(); // 期限管理データを取得
+    } else {
+      loadPriceCheckDetail(); // 商品検索データを取得
+    }
+  } 
+  else if (pageId === 'pageAll') {
     // 全店舗リストタブ
-    if (mode === 'scan') {
-      callGAS("getAllProductList").then(l => renderList('pageAll', l));
-    } else {
-      // 価格検索の全件取得（shopCodeを空で送る）
-      callGAS("getPriceCheckList", { shopCode: "" }).then(l => renderList('pageAll', l));
-    }
+    loadAllProducts(); 
   }
 }
 
@@ -736,10 +763,12 @@ function showAlertList() {
   callGAS("getAlertList", { shopCode, days }).then(l => renderList('pageList', l));
 }
 
-function loadShopDetail() {
+// 商品検索モード専用：自店舗のリスト取得
+function loadPriceCheckDetail() {
   const shopCode = document.getElementById('shopInput').value;
-  if(!shopCode) return;
-  callGAS("getShopDetailList", { shopCode }).then(l => renderList('pageSummary', l));
+  // GAS側の getPriceCheckList は params.shopCode で動くように以前修正したので、引数をオブジェクトにする
+  callGAS("getPriceCheckList", { shopCode: shopCode })
+    .then(list => renderList('pageSummary', list));
 }
 
 // 価格検索リストの読み込み補助関数
@@ -749,7 +778,18 @@ function loadPriceCheckDetail() {
   callGAS("getPriceCheckList", { shopCode }).then(l => renderList('pageSummary', l));
 }
 
-function loadAllProducts() { callGAS("getAllProductList").then(l => renderList('pageAll', l)); }
+// 全店舗リスト用：モードによって呼ぶGAS関数を切り分け
+function loadAllProducts() {
+  const mode = document.getElementById('mainModeSelect').value;
+  
+  if (mode === 'scan') {
+    // 期限管理の全店分
+    callGAS("getAllProductList").then(list => renderList('pageAll', list));
+  } else {
+    // 商品検索の全店分（shopCodeを空で送ることで全店分になる設計）
+    callGAS("getPriceCheckList", { shopCode: "" }).then(list => renderList('pageAll', list));
+  }
+}
 
 window.onscroll = handleScroll;
 </script>

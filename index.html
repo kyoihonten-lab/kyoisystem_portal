@@ -287,10 +287,6 @@ let isFetching = false;
 const codeReader = new ZXing.BrowserBarcodeReader();
 
 /**
- * 📷 カメラ・UI制御（あなたのロジックを100%継承）
- */
-
-/**
  * 📷 カメラ開始・停止の切り替え
  */
 async function toggleScanner() {
@@ -687,16 +683,23 @@ async function bulkDelete(pageId) {
  * UIのリセット（カメラを止めるかどうかを引数で制御）
  * @param {boolean} shouldStopCamera - trueならカメラを止める
  */
+/**
+ * UIのリセット
+ * @param {boolean} shouldStopCamera - trueならカメラを物理的に止める
+ */
 function resetUI(shouldStopCamera = false) {
   isFetching = false;
+
   if (shouldStopCamera) {
-    stopAllCameras();
+    stopAllCameras(); // 物理的な停止（店コード変更時など）
   }
 
+  // 入力エリアを隠す
   document.getElementById('editArea').style.display = 'none';
   document.getElementById('searchDetailArea').style.display = 'none';
   document.getElementById('manualJan').value = "";
   
+  // 店舗が確定していれば、スキャンアクションエリアを表示
   if (currentShopName) {
     document.getElementById('scanActionArea').style.display = 'block';
   }
@@ -706,11 +709,20 @@ function resetUI(shouldStopCamera = false) {
   if (regBtn) { regBtn.disabled = true; regBtn.innerText = "登録"; }
   if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "保存"; }
 
-  // カメラ継続時の処理
-  if (isScanning && !shouldStopCamera) {
-    // ZXingは自動で動き続けているので、UIだけ整えればOK
+  // ★ ここがポイント：カメラを止めない設定（false）で呼ばれた場合
+  // かつ、スキャン中フラグが立っているなら、スキャンループを再開させる
+  if (!shouldStopCamera && isScanning) {
+    const videoEl = document.getElementById('video');
+    // すでに動いているはずなので、デコード処理だけを再アタッチ
+    codeReader.decodeContinuously(videoEl, (result, err) => {
+      if (result && isScanning) {
+        isScanning = false;
+        codeReader.reset(); 
+        processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
+      }
+    });
   }
-} // ← ここでしっかり閉じる
+}// ← ここでしっかり閉じる
   
 function showPage(pageId) {
   try {

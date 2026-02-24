@@ -462,32 +462,43 @@ function renderList(pageId, list) {
   const view = document.getElementById('view_' + pageId);
   const bulkBtn = document.getElementById('btnComplete_' + pageId);
   const stockBtn = document.getElementById('btnStockAll');
+
   if (!list || list.length === 0) {
     view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">該当データはありません</div>';
     if(bulkBtn) bulkBtn.style.display = 'none';
     if(stockBtn) stockBtn.style.display = 'none';
     return;
   }
+
   if(bulkBtn) bulkBtn.style.display = 'block';
   if(pageId === 'pageAll' && stockBtn) stockBtn.style.display = 'block';
 
   let html = `<table class="list-table"><tr><th>選択</th><th>期限</th><th>商品情報</th><th>数</th></tr>`;
+
   list.forEach(item => {
     const rowClass = item.isExpired ? 'danger' : '';
     const shopHeader = item.shopCode ? `<div class="shop-info">${item.shopCode}　${item.shopName}</div>` : '';
-    let stockDisplay = (pageId === 'pageAll') 
-  ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-shop="${item.shopCode}" style="display:none;"></div>`
-  : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
     
+    // 在庫表示の切り分け
+    let stockDisplay = (pageId === 'pageAll') 
+      ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-shop="${item.shopCode}" style="display:none;"></div>`
+      : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
+    
+    // テーブル行の組み立て
     html += `<tr class="${rowClass}">
-// renderList内を以下のように修正（itemName と name どちらが来てもいいようにする）
-html += `<tr class="${rowClass}">
-  <td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>
-  <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
-  <td><div class="jan-text">${item.barcode}</div><b>${item.itemName || item.name || "名称不明"}</b>${stockDisplay}</td>
-  <td style="text-align:center;font-weight:bold;">${item.qty}</td>
-</tr>`;
+      <td style="text-align:center;">
+        <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}">
+      </td>
+      <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
+      <td>
+        <div class="jan-text">${item.barcode}</div>
+        <b>${item.itemName || item.name || "名称不明"}</b>
+        ${stockDisplay}
+      </td>
+      <td style="text-align:center;font-weight:bold;">${item.qty}</td>
+    </tr>`;
   });
+
   view.innerHTML = html + '</table>';
 }
 

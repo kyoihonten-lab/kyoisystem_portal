@@ -107,6 +107,12 @@ button:disabled {
   cursor: not-allowed;
   pointer-events: none; /* クリックを完全に無視 */
 }
+  /* 更新中（無効化）のボタンの見た目 */
+.btn-list-init:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  position: relative;
+}
   
   /* ボタン・セレクト共通（高さ・幅の統一） */
   #periodSelect { width: 100%; height: 65px; font-size: 1.2em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; margin-bottom: 10px; }
@@ -718,15 +724,33 @@ function handleScroll() { const btn = document.getElementById('backToTop'); if (
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 /**
- * 🔄 ページとデータの再読み込み（モード別のデータ取得を強制）
+ * 🔄 ページとデータの再読み込み（司令塔）
+ */
+/**
+ * 🔄 ページとデータの再読み込み
  */
 function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
 
-  // 店コードがない場合は処理しない（全店舗リスト以外）
+  // 1. ボタンの状態を「更新中」にする
+  // pageIdに対応するエリア内の .btn-list-init ボタンを探す
+  const container = document.getElementById(pageId);
+  const targetBtn = container ? container.querySelector('.btn-list-init') : null;
+  const originalText = targetBtn ? targetBtn.innerText : "";
+
+  if (targetBtn) {
+    targetBtn.disabled = true;
+    targetBtn.innerText = "更新中...";
+  }
+
+  // 店コードチェック
   if (!shopCode && pageId !== 'pageAll') {
     alert("店コードを入力してください");
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerText = originalText;
+    }
     return;
   }
 
@@ -734,25 +758,33 @@ function refreshPage(pageId) {
   const targetView = document.getElementById('view_' + pageId);
   if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
 
+  // GAS呼び出し
+  // 最後に必ずボタンを元に戻すために .finally() を使います
+  const resetBtn = () => {
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerText = originalText;
+    }
+  };
+
   if (pageId === 'pageList') {
-    // 期限チェックタブ
     if (mode === 'scan') {
-      showAlertList();
+      showAlertList().finally(resetBtn);
     } else {
       targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">期限登録モードに切り替えてください</div>';
+      resetBtn();
     }
   } 
   else if (pageId === 'pageSummary') {
-    // 登録済みリストタブ（自店分）
     if (mode === 'scan') {
-      loadShopDetail(); // 期限管理データを取得
+      // loadShopDetail が Promise を返すように調整が必要
+      loadShopDetail().finally(resetBtn);
     } else {
-      loadPriceCheckDetail(); // 商品検索データを取得
+      loadPriceCheckDetail().finally(resetBtn);
     }
   } 
   else if (pageId === 'pageAll') {
-    // 全店舗リストタブ
-    loadAllProducts(); 
+    loadAllProducts().finally(resetBtn);
   }
 }
 
@@ -774,32 +806,73 @@ function loadPriceCheckDetail() {
     });
 }
 
-// 価格検索リストの読み込み補助関数
+/**
+ * 商品検索：自店舗リストの取得
+ */
 function loadPriceCheckDetail() {
   const shopCode = document.getElementById('shopInput').value;
-  if(!shopCode) return;
-  callGAS("getPriceCheckList", { shopCode }).then(l => renderList('pageSummary', l));
+  callGAS("getPriceCheckList", { shopCode: shopCode })
+    .then(list => {
+      // JANコード順にソート
+      list.sort((a, b) => String(a.barcode).localeCompare(String(b.barcode)));
+      renderList('pageSummary', list);
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById('view_pageSummary').innerHTML = "データ取得エラー";
+    });
 }
-
-// 【修正版】全店舗リスト用：モードによって呼ぶGAS関数とソートを切り分け
+/**
+ * 期限管理：自店舗リストの取得
+ */
+function loadShopDetail() {
+  const shopCode = document.getElementById('shopInput').value;
+  callGAS("getShopDetailList", { shopCode: shopCode })
+    .then(list => {
+      // 期限順に並べ替え（念のためJS側でも実行）
+      list.sort((a, b) => a.serial - b.serial);
+      renderList('pageSummary', list);
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById('view_pageSummary').innerHTML = "データ取得エラー";
+    });
+}
+  
+/**
+ * 全店舗リスト用：モード別のデータ取得と多段階ソート
+ */
 function loadAllProducts() {
   const mode = document.getElementById('mainModeSelect').value;
+  const pageId = 'pageAll';
   
   if (mode === 'scan') {
     // 期限管理：期限が近い順（serial順）
-    callGAS("getAllProductList").then(list => renderList('pageAll', list));
+    callGAS("getAllProductList").then(list => renderList(pageId, list));
   } else {
-    // 商品検索：店コード順 ＞ JANコード順に並べ替え
+    // 商品検索：【店コード昇順】 ＞ 【JANコード昇順】
     callGAS("getPriceCheckList", { shopCode: "" })
       .then(list => {
         list.sort((a, b) => {
-          // 1. まず店コードで比較
-          const shopComp = String(a.shopCode).localeCompare(String(b.shopCode));
+          // 1. まず店コード（shopCode）を比較
+          const shopA = String(a.shopCode || "");
+          const shopB = String(b.shopCode || "");
+          const shopComp = shopA.localeCompare(shopB, undefined, { numeric: true });
+
+          // 2. 店コードが違うなら、店コード順で確定
           if (shopComp !== 0) return shopComp;
-          // 2. 同じ店ならJANコードで比較
-          return String(a.barcode).localeCompare(String(b.barcode));
+
+          // 3. 店コードが同じなら、JANコード（barcode）で比較
+          const janA = String(a.barcode || "");
+          const janB = String(b.barcode || "");
+          return janA.localeCompare(janB, undefined, { numeric: true });
         });
-        renderList('pageAll', list);
+        
+        renderList(pageId, list);
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('view_pageAll').innerHTML = "データ取得エラー";
       });
   }
 }

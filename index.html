@@ -268,13 +268,11 @@ let isScanning = false;
 let currentCode = "";
 let currentShopName = "";
 let isFetching = false;
-let codeReader = new ZXing.BrowserBarcodeReader();
+const codeReader = new ZXing.BrowserBarcodeReader();
 
 /**
  * 📷 カメラ・UI制御（あなたのロジックを100%継承）
  */
-let isScanning = false;
-const codeReader = new ZXing.BrowserBarcodeReader();
 
 /**
  * 📷 カメラ開始・停止の切り替え
@@ -475,11 +473,11 @@ function renderList(pageId, list) {
     const rowClass = item.isExpired ? 'danger' : '';
     const shopHeader = item.shopCode ? `<div class="shop-info">${item.shopCode}　${item.shopName}</div>` : '';
     let stockDisplay = (pageId === 'pageAll') 
-      ? `<div class="stock-badge stock-val" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
-      : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
+  ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-shop="${item.shopCode}" style="display:none;"></div>`
+  : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
     
     html += `<tr class="${rowClass}">
-      <td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>
+  <td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>
       <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
       <td><div class="jan-text">${item.barcode}</div><b>${item.name || item.itemName}</b>${stockDisplay}</td>
       <td style="text-align:center;font-weight:bold;">${item.qty}</td>
@@ -492,26 +490,34 @@ async function fetchSelectedStocks() {
   const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);
   if (checks.length === 0) { alert("商品を選択してください"); return; }
   
-  const ids = Array.from(checks).map(c => c.getAttribute('data-id'));
-  const shopCode = document.getElementById('shopInput').value; // または各行から取得
-
-  // 画面上の表示を「取得中」にする
-  ids.forEach(id => {
-    document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
-      el.innerText = "取得中...";
-      el.style.display = "inline-block";
-    });
+  const shopMap = {};
+  checks.forEach(c => {
+    const s = c.getAttribute('data-shop');
+    const id = c.getAttribute('data-id'); // IDを取得
+    if (!shopMap[s]) shopMap[s] = [];
+    shopMap[s].push(id);
+    c.checked = false;
   });
 
-  // GASを呼び出し（IDリストを渡す）
-  const res = await callGAS("getBatchStocksByIds", { shopCode, ids });
-  
-  if (res) {
-    Object.keys(res).forEach(id => {
+  for (const shopCode of Object.keys(shopMap)) {
+    const ids = shopMap[shopCode];
+    ids.forEach(id => {
+      // IDで表示場所を探して「取得中...」にする
       document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
-        el.innerHTML = `理論在庫: ${res[id]}`;
+        el.innerText = "取得中...";
+        el.style.display = "inline-block";
       });
     });
+
+    // GAS側の新関数「getBatchStocksByIds」を呼び出し
+    const res = await callGAS("getBatchStocksByIds", { shopCode, recordIds: ids });
+    if (res) {
+      Object.keys(res).forEach(id => {
+        document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
+          el.innerHTML = `理論在庫: ${res[id]}`;
+        });
+      });
+    }
   }
 }
 
@@ -529,8 +535,6 @@ async function bulkDelete(pageId) {
  */
 function resetUI(shouldStopCamera = false) {
   isFetching = false;
-  
-  // 指定された場合のみカメラを停止（停止ボタンやタブ切り替え時）
   if (shouldStopCamera) {
     stopAllCameras();
   }
@@ -539,23 +543,20 @@ function resetUI(shouldStopCamera = false) {
   document.getElementById('searchDetailArea').style.display = 'none';
   document.getElementById('manualJan').value = "";
   
-  // 店コードがあればスキャン開始ボタンを表示（カメラ稼働中ならボタンの文字は「停止」のまま）
   if (currentShopName) {
     document.getElementById('scanActionArea').style.display = 'block';
   }
   
-  // ボタンの状態を元に戻す
   const regBtn = document.getElementById('mainRegBtn');
   const saveBtn = document.getElementById('mainSaveBtn');
-  regBtn.disabled = true; regBtn.innerText = "登録";
-  saveBtn.disabled = true; saveBtn.innerText = "保存";
+  if (regBtn) { regBtn.disabled = true; regBtn.innerText = "登録"; }
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "保存"; }
 
-  // カメラが動いている（isScanningがtrue）なら、即座に再スキャンを受け付け可能にする
-  if (isScanning) {
-    // ZXingのデコードを継続、またはリセットして再開
-    startCamera(); 
+  // カメラ継続時の処理
+  if (isScanning && !shouldStopCamera) {
+    // ZXingは自動で動き続けているので、UIだけ整えればOK
   }
-}
+} // ← ここでしっかり閉じる
   
 function showPage(pageId) {
   stopAllCameras();

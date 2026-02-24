@@ -491,23 +491,27 @@ function renderList(pageId, list) {
 async function fetchSelectedStocks() {
   const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);
   if (checks.length === 0) { alert("商品を選択してください"); return; }
-  const shopMap = {};
-  checks.forEach(c => {
-    const s = c.getAttribute('data-shop'), j = c.getAttribute('data-jan');
-    if (!shopMap[s]) shopMap[s] = []; shopMap[s].push(j);
-    c.checked = false;
-  });
-  for (const code of Object.keys(shopMap)) {
-    const jans = shopMap[code];
-    jans.forEach(jan => {
-      document.querySelectorAll(`.stock-val[data-jan="${jan}"][data-shop="${code}"]`).forEach(el => { el.innerText = "取得中..."; el.style.display = "inline-block"; });
+  
+  const ids = Array.from(checks).map(c => c.getAttribute('data-id'));
+  const shopCode = document.getElementById('shopInput').value; // または各行から取得
+
+  // 画面上の表示を「取得中」にする
+  ids.forEach(id => {
+    document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
+      el.innerText = "取得中...";
+      el.style.display = "inline-block";
     });
-    const res = await callGAS("getBatchStocks", { shopCode: code, barcodes: jans });
-    if (res) {
-      Object.keys(res).forEach(jan => {
-        document.querySelectorAll(`.stock-val[data-jan="${jan}"][data-shop="${code}"]`).forEach(el => { el.innerHTML = `理論在庫: ${res[jan]}`; });
+  });
+
+  // GASを呼び出し（IDリストを渡す）
+  const res = await callGAS("getBatchStocksByIds", { shopCode, ids });
+  
+  if (res) {
+    Object.keys(res).forEach(id => {
+      document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
+        el.innerHTML = `理論在庫: ${res[id]}`;
       });
-    }
+    });
   }
 }
 

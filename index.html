@@ -383,36 +383,54 @@ function stopAllCameras() {
 
 async function processShopCode() {
   const input = document.getElementById('shopInput');
+  const display = document.getElementById('shopDisplay');
   const code = input.value.trim();
+  
   if (!code) return;
-  document.getElementById('shopDisplay').innerText = "照会中...";
+  
+  display.innerText = "照会中...";
+  
   const name = await callGAS("getStoreName", { code });
+  
   if (name) {
     currentShopName = name;
-    document.getElementById('shopDisplay').innerText = name;
-    input.readOnly = true;
-    input.style.backgroundColor = "#e8f5e9";
-    document.getElementById('shopLockMessage').style.display = "none";
-    document.getElementById('scanActionArea').style.display = "block";
+    display.innerText = name;
+    
+    // --- ここでロックをかける ---
+    input.readOnly = true; 
+    input.style.backgroundColor = "#e8f5e9"; // 薄い緑色にして確定を表現
+    input.style.color = "#666"; // 文字色を少し薄く
+    
+    // スキャンエリアを表示（未表示の場合）
+    const scanArea = document.getElementById('scanActionArea');
+    if (scanArea) scanArea.style.display = "block";
+    
   } else {
-    document.getElementById('shopDisplay').innerText = "未登録の店舗";
+    display.innerText = "未登録の店舗";
     input.value = "";
+    input.readOnly = false;
   }
 }
 
 function reEnterShopCode() {
+  // カメラが動いていたら止める（安全のため）
   stopAllCameras(); 
+  
   const input = document.getElementById('shopInput');
   const display = document.getElementById('shopDisplay');
 
-  // 1. ロックを解除して値をクリア
+  // --- ロックを解除して初期化 ---
   input.readOnly = false;
   input.disabled = false;
   input.value = "";
-  input.style.backgroundColor = "#fff";
+  input.style.backgroundColor = "#fff"; // 背景色を白に戻す
+  input.style.color = "#000";
   display.innerText = "店コードを入力";
 
-  // 2. 0.1秒後にフォーカス。これで数字キーボードが強制的に立ち上がります
+  // スキャン画面などをリセット
+  resetUI(true);
+
+  // 0.1秒後にフォーカス（数字キーボードを強制的に出す）
   setTimeout(() => {
     input.focus();
   }, 100);

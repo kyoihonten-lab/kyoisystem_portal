@@ -867,6 +867,55 @@ function loadAllProducts() {
       });
   }
 }
+  /**
+ * 🌍 全店舗リスト用：チェックした商品の理論在庫を一括取得して表示
+ */
+async function fetchSelectedStocks() {
+  const checks = document.querySelectorAll('#view_pageAll .bulk-check:checked');
+  if (checks.length === 0) return alert("在庫を確認する商品を選択してください");
+
+  // ボタンを「確認中」にする
+  const btn = document.getElementById('btnStockAll');
+  const originalText = "チェック商品在庫確認";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "在庫照会中...";
+  }
+
+  // チェックされた行からJANと店コードを抽出
+  const targets = Array.from(checks).map(c => ({
+    barcode: c.getAttribute('data-jan'),
+    shopCode: c.getAttribute('data-shop'),
+    recordId: c.getAttribute('data-id')
+  }));
+
+  try {
+    // GASに一括問い合わせ（サーバー側の getBulkStocks 呼び出し）
+    const results = await callGAS("getBulkStocks", { targets });
+    
+    if (results && typeof results === 'object') {
+      // 取得した在庫数を各行のバッジに反映
+      targets.forEach(t => {
+        const badge = document.querySelector(`.stock-val[data-id="${t.recordId}"]`);
+        if (badge) {
+          const stock = results[t.recordId] !== undefined ? results[t.recordId] : "不明";
+          badge.innerText = "理論在庫: " + stock;
+          badge.style.display = "inline-block"; // 非表示だったバッジを表示
+        }
+      });
+    } else {
+      alert("在庫データの取得に失敗しました");
+    }
+  } catch (e) {
+    console.error(e);
+    alert("通信エラーが発生しました");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = originalText;
+    }
+  }
+}
   
 window.onscroll = handleScroll;
 </script>

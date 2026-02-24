@@ -105,12 +105,11 @@
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  pointer-events: none; /* クリックを完全に無視 */
-}
+  }
   /* 更新中（無効化）のボタンの見た目 */
 .btn-list-init:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
   position: relative;
 }
   
@@ -562,12 +561,25 @@ function renderList(pageId, list) {
  * モード別の並べ替えロジック
  */
 function sortListByMode(pageId, list, mode) {
-  if (mode === 'scan' && pageId === 'pageAll') {
+  if (mode === 'scan') {
+    // 期限登録モード：期限が近い順
+    if (pageId === 'pageAll') {
+      list.sort((a, b) => {
+        if (a.shopCode !== b.shopCode) return a.shopCode.localeCompare(b.shopCode, undefined, {numeric: true});
+        return new Date(a.expiry) - new Date(b.expiry);
+      });
+    } else {
+      list.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+    }
+  } else {
+    // 商品検索モード：店コード順 > JANコード順
     list.sort((a, b) => {
-      if (a.shopCode !== b.shopCode) return a.shopCode.localeCompare(b.shopCode);
-      return new Date(a.expiry) - new Date(b.expiry);
+      const shopComp = String(a.shopCode || "").localeCompare(String(b.shopCode || ""), undefined, { numeric: true });
+      if (shopComp !== 0) return shopComp;
+      return String(a.barcode || "").localeCompare(String(b.barcode || ""), undefined, { numeric: true });
     });
   }
+}
   // 他のモードの並べ替えが必要になったらここに追加
 }
 
@@ -584,9 +596,7 @@ function getTableHeaderByMode(mode) {
 /**
  * モード別の行（TR）生成（色付け・データ参照を修正）
  */
-/**
- * モード別の行（TR）生成
- */
+
 function getRowHtmlByMode(mode, item, pageId) {
   // 店コード・店名をJANコードと同じサイズ感（jan-textクラス相当）に調整
   const shopHeader = `<div class="shop-info jan-text" style="color:#666; margin-bottom:2px;">${item.shopCode || ''}　 ${item.shopName || ''}</div>`;
@@ -673,18 +683,28 @@ function resetUI(shouldStopCamera = false) {
 
 function showPage(pageId) {
   try { stopAllCameras(); } catch(e) {}
-  if (pageId === 'pageScan') {
-    resetUI(false);
-  }
+  
+  // ページ切り替え
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const targetId = (pageId === 'pageScan') ? 'unifiedPage' : pageId;
   const targetEl = document.getElementById(targetId);
   if (targetEl) targetEl.classList.add('active');
 
+  // ナビゲーションの active 切り替え
   const navs = document.querySelectorAll('.nav-item');
   const pages = ['pageScan','pageList','pageSummary','pageAll'];
   navs.forEach((n, i) => n.classList.toggle('active', pages[i] === pageId));
-  refreshPage(pageId);
+
+  if (pageId === 'pageScan') {
+    resetUI(false);
+  } else {
+    // ★ここがポイント：自動で refreshPage を呼ばないようにします。
+    // もしページが真っ白で気になるなら、初期メッセージだけ出す。
+    const view = document.getElementById('view_' + pageId);
+    if (view && view.innerHTML === "") {
+       view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">「リスト表示」ボタンを押してください</div>';
+    }
+  }
   scrollToTop();
 }
 
@@ -720,21 +740,36 @@ function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
  * 🔄 ページとデータの再読み込み（ボタンの更新中表示を含む）
  */
 
-function refreshPage(pageId) {
+fufunction refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
   
+  // 1. ページ要素とボタンの特定
+  if (pageId === 'pageScan' || pageId === 'unifiedPage') return;
   const container = document.getElementById(pageId);
   const targetBtn = container ? container.querySelector('.btn-list-init') : null;
-  const originalText = targetBtn ? targetBtn.innerText : "リスト表示";
+  const targetView = document.getElementById('view_' + pageId);
 
-  // 1. ボタンをロック
+  // ボタンの元のテキストを保持（全店舗リストならその名前で戻すため）
+  const originalText = (pageId === 'pageAll') ? "全店舗リスト表示" : 
+                       (pageId === 'pageList') ? "期限チェック表示" : "リスト表示";
+
+  // --- 【重要】在庫チェックページのガード ---
+  if (pageId === 'pageList' && mode !== 'scan') {
+    if (targetView) {
+      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてから実行してください</div>';
+    }
+    return; // ここで終了。ボタンも更新中にはならない
+  }
+
+  // 2. ボタンを「更新中」状態にロック
   if (targetBtn) {
     targetBtn.disabled = true;
     targetBtn.innerText = "更新中...";
-    targetBtn.style.opacity = "0.5"; // 直接スタイルも指定して確実にする
+    targetBtn.style.opacity = "0.5";
   }
 
+  // ボタンを元に戻すための共通処理
   const resetBtn = () => {
     if (targetBtn) {
       targetBtn.disabled = false;
@@ -743,34 +778,31 @@ function refreshPage(pageId) {
     }
   };
 
+  // 店コードチェック
   if (!shopCode && pageId !== 'pageAll') {
     alert("店コードを入力してください");
     resetBtn();
     return;
   }
 
-  const targetView = document.getElementById('view_' + pageId);
   if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
 
-  // 2. すべての処理で Promise を return する
+  // 3. 各モード・ページに応じて実行（すべて return して Promise を繋ぐ）
   if (pageId === 'pageList') {
-    if (mode === 'scan') {
-      return showAlertList().finally(resetBtn); // ★ return が必要
-    } else {
-      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてください</div>';
-      resetBtn();
-      return Promise.resolve(); // 形式を合わせる
-    }
+    // 期限チェック：showAlertList が return callGAS(...) している必要があります
+    return showAlertList().finally(resetBtn);
   } 
   else if (pageId === 'pageSummary') {
+    // 登録リスト（自店）：モードによって呼び出す関数を変える
     if (mode === 'scan') {
-      return loadShopDetail().finally(resetBtn); // ★ return が必要
+      return loadShopDetail().finally(resetBtn);
     } else {
-      return loadPriceCheckDetail().finally(resetBtn); // ★ return が必要
+      return loadPriceCheckDetail().finally(resetBtn);
     }
   } 
   else if (pageId === 'pageAll') {
-    return loadAllProducts().finally(resetBtn); // ★ return が必要
+    // 全店舗リスト：この関数内で内部的に mode 判定して取得する
+    return loadAllProducts().finally(resetBtn);
   }
 }
   

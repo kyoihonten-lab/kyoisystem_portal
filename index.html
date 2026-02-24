@@ -150,7 +150,7 @@
 
 <div id="unifiedPage" class="page active">
 <div id="interactive" class="viewport">
-  <video id="video" autoplay muted playsinline></video>
+  <video id="video" autoplay muted playsinline="true" webkit-playsinline="true"></video>
   <div class="scan-overlay"></div>
   <div class="scan-line"></div>
 </div>
@@ -312,12 +312,18 @@ async function startCamera() {
     btn.innerText = "🛑 停止";
     btn.className = "btn-main btn-stop";
     
-    // スキャン（デコード）開始
-    codeReader.decodeFromVideoElement(videoEl, (result, err) => {
+// startCamera関数の中の「//スキャン（デコード）開始」以降を以下に書き換え
+    codeReader.decodeContinuously(videoEl, (result, err) => {
       if (result && isScanning) {
-        // バーコードを検知したら即座に物理停止させる
-        stopAllCameras(); 
+        // 読み取り成功！
+        console.log("読み取り成功:", result.text);
+        
+        // 連続読み取りを一時的に止めてから処理へ（二重読み込み防止）
+        isScanning = false; 
         processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
+      }
+      if (err && !(err instanceof ZXing.NotFoundException)) {
+        console.error("スキャンエラー:", err);
       }
     });
   } catch (err) {
@@ -327,33 +333,28 @@ async function startCamera() {
 }
 
 /**
- * 🛑 カメラを物理的に停止・解放する
+ * カメラを物理的に停止・解放する
  */
 function stopAllCameras() {
   isScanning = false;
-  
-  // 1. ZXingライブラリのデコード動作を停止
+  // 1. ZXingの動作を完全に止める
   codeReader.reset();
   
-  // 2. カメラのレンズ（ハードウェア）をオフにする
   const videoEl = document.getElementById('video');
   if (videoEl && videoEl.srcObject) {
-    const stream = videoEl.srcObject;
-    const tracks = stream.getTracks();
-    
-    tracks.forEach(track => {
-      track.stop(); // ここでレンズの電源を落とすイメージ
-    });
-    
-    videoEl.srcObject = null; // 映像との接続を解除
+    const tracks = videoEl.srcObject.getTracks();
+    tracks.forEach(track => track.stop()); // レンズの電源を切る
+    videoEl.srcObject = null;
   }
   
-  // UI表示を元に戻す
   const btn = document.getElementById('btnToggleScan');
   if (btn) {
     btn.innerText = "📷 スキャンを開始";
     btn.className = "btn-main btn-start";
   }
+  
+  // スキャン中だった通信も強制中断させるためのフラグ
+  isFetching = false;
 }
 
 async function processShopCode() {
@@ -510,12 +511,21 @@ async function fetchSelectedStocks() {
     });
 
     // GAS側の新関数「getBatchStocksByIds」を呼び出し
-    const res = await callGAS("getBatchStocksByIds", { shopCode, recordIds: ids });
+const res = await callGAS("getBatchStocksByIds", { shopCode, recordIds: ids });
+    
+    // resが空の場合（在庫0など）でも表示を更新するように変更
     if (res) {
       Object.keys(res).forEach(id => {
         document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
-          el.innerHTML = `理論在庫: ${res[id]}`;
+          // res[id] が 0 や null でも表示させる
+          const val = (res[id] === undefined || res[id] === null) ? "0" : res[id];
+          el.innerHTML = `理論在庫: ${val}`;
         });
+      });
+    } else {
+      // 通信失敗時などは表示を戻す
+      ids.forEach(id => {
+        document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => { el.innerText = "取得失敗"; });
       });
     }
   }

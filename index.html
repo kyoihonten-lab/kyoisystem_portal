@@ -715,56 +715,63 @@ function handleManualUnified() { const code = document.getElementById('manualJan
 function handleScroll() { const btn = document.getElementById('backToTop'); if (btn) btn.style.display = (window.pageYOffset > 300) ? 'flex' : 'none'; }
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
+
 /**
- * 🔄 ページとデータの再読み込み（司令塔）
+ * 🔄 ページとデータの再読み込み（ボタンの更新中表示を含む）
  */
 function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
-  const container = document.getElementById(pageId);
   
-  // 1. ボタンの状態を「更新中」にする
+  // 1. 押されたボタンを特定して「更新中」状態にする
+  const container = document.getElementById(pageId);
   const targetBtn = container ? container.querySelector('.btn-list-init') : null;
-  const originalText = targetBtn ? targetBtn.innerText : "";
+  const originalText = targetBtn ? targetBtn.innerText : "リスト表示";
+
   if (targetBtn) {
-    targetBtn.disabled = true;
+    targetBtn.disabled = true; // 連打防止
     targetBtn.innerText = "更新中...";
+    // CSSの .btn-list-init:disabled { opacity: 0.5; } が効いて半透明になります
   }
 
-  // 店コードチェック
+  // 2. ボタンを元の状態に戻すための共通処理
+  const resetBtn = () => {
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerText = originalText;
+    }
+  };
+
+  // 店コードチェック（全店舗リスト以外）
   if (!shopCode && pageId !== 'pageAll') {
     alert("店コードを入力してください");
-    if (targetBtn) { targetBtn.disabled = false; targetBtn.innerText = originalText; }
+    resetBtn();
     return;
   }
 
-  // 読み込み中表示
+  // 3. 読み込み中メッセージの表示
   const targetView = document.getElementById('view_' + pageId);
-  if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
+  if (targetView) {
+    targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
+  }
 
-  // ボタンを元に戻す共通処理
-  const resetBtn = () => {
-    if (targetBtn) { targetBtn.disabled = false; targetBtn.innerText = originalText; }
-  };
-
-  // --- モードとページに応じた振り分け ---
+  // 4. 各データ取得処理（必ず Promise を return して .finally でボタンを戻す）
   if (pageId === 'pageList') {
-    // 【在庫チェックタブ】
     if (mode === 'scan') {
-      return showAlertList().finally(resetBtn); // 期限登録モードなら実行
+      return showAlertList().finally(resetBtn);
     } else {
-      // 商品検索モードなら警告を表示 [cite: 165]
-      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">' +
-                            '⚠️ 期限登録モードに切り替えてから実行してください</div>';
+      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">期限登録モードに切り替えてください</div>';
       resetBtn();
     }
   } 
   else if (pageId === 'pageSummary') {
-    // 【登録リストタブ】
-    return (mode === 'scan' ? loadShopDetail() : loadPriceCheckDetail()).finally(resetBtn);
+    if (mode === 'scan') {
+      return loadShopDetail().finally(resetBtn);
+    } else {
+      return loadPriceCheckDetail().finally(resetBtn);
+    }
   } 
   else if (pageId === 'pageAll') {
-    // 【全店舗リストタブ】
     return loadAllProducts().finally(resetBtn);
   }
 }

@@ -519,12 +519,14 @@ async function saveSearchPrice() {
   }
 }
 
+/**
+ * 📋 リスト・在庫関連（共通の器）
+ */
 function renderList(pageId, list) {
   const view = document.getElementById('view_' + pageId);
   const bulkBtn = document.getElementById('btnComplete_' + pageId);
   const stockBtn = document.getElementById('btnStockAll');
   const mode = document.getElementById('mainModeSelect').value;
-  const isScanMode = (mode === 'scan');
 
   if (!list || list.length === 0) {
     view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">該当データはありません</div>';
@@ -532,61 +534,95 @@ function renderList(pageId, list) {
     if(stockBtn) stockBtn.style.display = 'none';
     return;
   }
-  
+
+  // 並べ替え
+  sortListByMode(pageId, list, mode);
+
+  // ボタンの表示連動
   if(bulkBtn) bulkBtn.style.display = 'block';
-  if(pageId === 'pageAll' && stockBtn) {
-    stockBtn.style.display = isScanMode ? 'block' : 'none';
+  // 在庫確認ボタンは「全店ページ」かつ「期限登録モード」の時だけ
+  if(stockBtn) {
+    stockBtn.style.display = (pageId === 'pageAll' && mode === 'scan') ? 'block' : 'none';
   }
 
-  let headerHtml = isScanMode 
+  let html = `<table class="list-table">${getTableHeaderByMode(mode)}`;
+  list.forEach(item => {
+    html += getRowHtmlByMode(mode, item, pageId);
+  });
+  view.innerHTML = html + '</table>';
+}
+
+/**
+ * モード別の並べ替えロジック
+ */
+function sortListByMode(pageId, list, mode) {
+  if (mode === 'scan' && pageId === 'pageAll') {
+    list.sort((a, b) => {
+      if (a.shopCode !== b.shopCode) return a.shopCode.localeCompare(b.shopCode);
+      return new Date(a.expiry) - new Date(b.expiry);
+    });
+  }
+  // 他のモードの並べ替えが必要になったらここに追加
+}
+
+/**
+ * モード別のテーブルヘッダー
+ */
+// 補助関数：ヘッダー
+function getTableHeaderByMode(mode) {
+  return (mode === 'scan') 
     ? `<tr><th>選択</th><th>期限</th><th>商品情報</th><th>数</th></tr>`
     : `<tr><th>選択</th><th>EC在庫</th><th>商品情報</th><th>EC価格</th></tr>`;
+}
 
-  let html = `<table class="list-table">${headerHtml}`;
-  
-  list.forEach(item => {
-    const rowClass = (isScanMode && item.isExpired) ? 'danger' : '';
-    const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.8em;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
-    
-    let rowContent = "";
-    if (isScanMode) {
-      let stockDisplay = (pageId === 'pageAll') 
-        ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
-        : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
-      rowContent = `
+/**
+ * モード別の行（TR）生成
+ */
+// 補助関数：行生成
+function getRowHtmlByMode(mode, item, pageId) {
+  const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.8em;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
+  const checkbox = `<td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>`;
+
+  // --- 1. 期限管理モード ---
+  if (mode === 'scan') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const rowClass = (new Date(item.expiry) <= today) ? 'danger' : '';
+    const stockDisplay = (pageId === 'pageAll') 
+      ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
+      : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
+
+    return `
+      <tr class="${rowClass}">
+        ${checkbox}
         <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
         <td>
           <div class="jan-text">${item.barcode}</div>
           <b>${item.itemName || item.name || "名称不明"}</b>
           ${stockDisplay}
         </td>
-        <td style="text-align:center;font-weight:bold;">${item.qty}</td>`;
-    } else {
-      const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
-      const makerName = item.brand || item.maker || "";
-      rowContent = `
-        <td style="text-align:center; font-size:0.85em;">
-          ${shopHeader}
-          <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
-        </td>
-        <td>
-          <div class="jan-text">${item.barcode}</div>
-          <div style="font-size:0.75em; color:#7f8c8d;">${makerName}</div>
-          <b style="font-size:0.95em;">${item.itemName || item.name || "名称不明"}</b>
-        </td>
-        <td style="text-align:center; color:#e67e22; font-weight:bold;">${priceDisp}</td>`;
-    }
-    
-    html += `<tr class="${rowClass}">
-      <td style="text-align:center;">
-        <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}">
+        <td style="text-align:center;font-weight:bold;">${item.qty}</td>
+      </tr>`;
+  } 
+  
+  // --- 2. それ以外（現状は価格検索モード） ---
+  // ここを else if ではなく「それ以外すべて」にすることで return "" を消せます
+  const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
+  return `
+    <tr>
+      ${checkbox}
+      <td style="text-align:center; font-size:0.85em;">
+        ${shopHeader}
+        <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
       </td>
-      ${rowContent}
+      <td>
+        <div class="jan-text">${item.barcode}</div>
+        <div style="font-size:0.75em; color:#7f8c8d;">${item.brand || item.maker || ""}</div>
+        <b style="font-size:0.95em;">${item.itemName || item.name || "名称不明"}</b>
+      </td>
+      <td style="text-align:center; color:#e67e22; font-weight:bold;">${priceDisp}</td>
     </tr>`;
-  });
-  view.innerHTML = html + '</table>';
 }
-
+  
 async function fetchSelectedStocks() {
   const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);
   if (checks.length === 0) { alert("商品を選択してください"); return; }
@@ -672,8 +708,19 @@ function handleModeChange() {
   stopAllCameras();
   resetUI(true); 
   const mode = document.getElementById('mainModeSelect').value; 
-  document.getElementById('manualConfirmBtn').innerText = (mode === 'scan') ? "確認" : "検索"; 
-  document.getElementById('manualJan').placeholder = (mode === 'scan') ? "JAN手入力" : "検索JAN入力"; 
+  
+  // 1. 手入力エリアのボタンとヒントを切り替え
+  const manualBtn = document.getElementById('manualConfirmBtn');
+  const manualInput = document.getElementById('manualJan');
+  if (manualBtn) manualBtn.innerText = (mode === 'scan') ? "確認" : "検索"; 
+  if (manualInput) manualInput.placeholder = (mode === 'scan') ? "JAN手入力" : "検索JAN入力"; 
+
+  // 2. 各ページの「処理完了」ボタンのテキストも連動させると親切
+  const bulkButtons = ['btnComplete_pageList', 'btnComplete_pageSummary', 'btnComplete_pageAll'];
+  bulkButtons.forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.innerText = (mode === 'scan') ? "チェック商品の処理完了" : "チェック商品の削除";
+  });
 }
   
 function handleManualUnified() { const code = document.getElementById('manualJan').value.trim(); if (code) processUnifiedFlow(code, document.getElementById('mainModeSelect').value); }

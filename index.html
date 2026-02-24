@@ -332,13 +332,26 @@ async function startCamera() {
       btn.className = "btn-main btn-stop";
     }
 
-    codeReader.decodeContinuously(videoEl, (result, err) => {
-      if (result && isScanning) {
-        isScanning = false;
-        // スキャン成功時もボタンを戻すならここで stopAllCameras() を呼ぶ
-        processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
-      }
-    });
+// startCamera 関数内のこの部分を修正
+codeReader.decodeContinuously(videoEl, (result, err) => {
+  if (result && isScanning) {
+    // 1. まずフラグを即座に折る
+    isScanning = false;
+    
+    // 2. 物理的にカメラの解析を止める（これが重要！）
+    codeReader.reset(); 
+    
+    // 3. UIを「停止」状態に戻す
+    const btn = document.getElementById('btnToggleScan');
+    if (btn) {
+      btn.innerText = "📷 スキャンを開始";
+      btn.className = "btn-main btn-start";
+    }
+
+    // 4. 処理へ進む
+    processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
+  }
+});
   } catch (err) {
     console.error(err);
     alert("カメラを起動できません");
@@ -449,7 +462,9 @@ function reEnterShopCode() {
 }
 
 async function processUnifiedFlow(code, mode) {
-  if (!code) return;
+  // カメラ停止中、または照会中なら何もしない
+  if (!code || isFetching) return;
+  stopAllCameras();
   currentCode = code;
   isFetching = true;
   const isScanMode = (mode === 'scan');
@@ -582,18 +597,25 @@ function renderList(pageId, list) {
   
   list.forEach(item => {
     const rowClass = item.isExpired ? 'danger' : '';
-    // 店コードと店名を表示
+    // 店コードと店名を表示（全店舗リストでも誰の商品か分かるように）
     const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.8em;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
     
-    // 在庫表示部分：一意のrecordIdをIDとして持たせることで、誤表示を防ぐ
-    let stockValue = item.dataStock || '0';
-    let stockDisplay = (pageId === 'pageAll') 
-      ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-shop="${item.shopCode}" style="display:none;"></div>`
-      : `<div class="stock-badge">理論在庫: ${stockValue}</div>`;
+    // --- 在庫表示の切り分け ---
+    let stockDisplay = "";
+    if (pageId === 'pageAll') {
+      // 全店舗リスト用：ボタンを押すまで非表示。data-jan と data-shop で紐付け
+      stockDisplay = `<div class="stock-badge stock-val" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`;
+    } else {
+      // 在庫チェック・登録リスト用：最初から表示
+      stockDisplay = `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
+    }
     
     html += `<tr class="${rowClass}">
       <td style="text-align:center;">
-        <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}">
+        <input type="checkbox" class="bulk-check" 
+               data-id="${item.recordId}" 
+               data-jan="${item.barcode}" 
+               data-shop="${item.shopCode}">
       </td>
       <td>${shopHeader}<div style="font-size:0.9em;">${item.expiry}</div></td>
       <td>
@@ -607,6 +629,7 @@ function renderList(pageId, list) {
   
   view.innerHTML = html + '</table>';
 }
+  
 
 async function fetchSelectedStocks() {
   const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);
@@ -715,7 +738,14 @@ function showPage(pageId) {
 /**
  * 🛠 その他補助（あなたのロジックを継承）
  */
-function handleModeChange() { resetUI(); const mode = document.getElementById('mainModeSelect').value; document.getElementById('manualConfirmBtn').innerText = (mode === 'scan') ? "確認" : "検索"; document.getElementById('manualJan').placeholder = (mode === 'scan') ? "JAN手入力" : "検索JAN入力"; }
+function handleModeChange() { 
+  stopAllCameras(); // モードを変えたら一度カメラを完全に切る
+  resetUI(true); 
+  const mode = document.getElementById('mainModeSelect').value; 
+  document.getElementById('manualConfirmBtn').innerText = (mode === 'scan') ? "確認" : "検索"; 
+  document.getElementById('manualJan').placeholder = (mode === 'scan') ? "JAN手入力" : "検索JAN入力"; 
+}
+  
 function handleManualUnified() { const code = document.getElementById('manualJan').value.trim(); if (code) processUnifiedFlow(code, document.getElementById('mainModeSelect').value); }
 function handleScroll() { const btn = document.getElementById('backToTop'); if (btn) btn.style.display = (window.pageYOffset > 300) ? 'flex' : 'none'; }
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }

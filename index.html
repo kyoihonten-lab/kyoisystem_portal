@@ -383,31 +383,36 @@ function stopAllCameras() {
 
 async function processShopCode() {
   const input = document.getElementById('shopInput');
-  const display = document.getElementById('shopDisplay'); // ここが「店コードを入力してください」の場所
+  const display = document.getElementById('shopDisplay');
+  const lockMsg = document.getElementById('shopLockMessage'); // ★これが必要です！
   const code = input.value.trim();
   
   if (!code || input.readOnly) return;
 
-  // 1. まず表示を切り替える
-  display.innerText = "照会中...";
-  display.style.color = "#f39c12"; // 照会中はオレンジ色に
+  display.innerText = "⏳ 照会中...";
+  display.style.color = "#f39c12";
 
   try {
     const name = await callGAS("getStoreName", { code });
     
     if (name) {
       currentShopName = name;
-      // 2. 成功したら店舗名で上書き（これで「店コードを入力...」は消える）
       display.innerText = name;
-      display.style.color = "#2c3e50"; // 通常の色に戻す
+      display.style.color = "#2c3e50"; 
+      
+      // ★ ここで赤い警告を消す
+      if (lockMsg) lockMsg.style.display = "none"; 
       
       input.readOnly = true; 
       input.style.backgroundColor = "#e8f5e9";
       
-      document.getElementById('scanActionArea').style.display = "block";
+      const scanArea = document.getElementById('scanActionArea');
+      if (scanArea) scanArea.style.display = "block";
     } else {
       display.innerText = "未登録の店舗";
       display.style.color = "#e74c3c";
+      // 失敗した時は赤い警告を念のため出しておく
+      if (lockMsg) lockMsg.style.display = "block"; 
       input.value = "";
     }
   } catch (e) {
@@ -430,6 +435,9 @@ function reEnterShopCode() {
   input.style.backgroundColor = "#fff"; // 背景色を白に戻す
   input.style.color = "#000";
   display.innerText = "店コードを入力";
+  // ★ 再入力のときは、また赤い案内を表示させる
+  const lockMsg = document.getElementById('shopLockMessage');
+  if (lockMsg) lockMsg.style.display = "block";
 
   // スキャン画面などをリセット
   resetUI(true);

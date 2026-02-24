@@ -589,7 +589,7 @@ function getTableHeaderByMode(mode) {
  */
 function getRowHtmlByMode(mode, item, pageId) {
   // 店コード・店名をJANコードと同じサイズ感（jan-textクラス相当）に調整
-  const shopHeader = `<div class="shop-info jan-text" style="color:#666; margin-bottom:2px;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
+  const shopHeader = `<div class="shop-info jan-text" style="color:#666; margin-bottom:2px;">${item.shopCode || ''}　 ${item.shopName || ''}</div>`;
   const checkbox = `<td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>`;
 
   if (mode === 'scan') {
@@ -631,7 +631,7 @@ function getRowHtmlByMode(mode, item, pageId) {
         </td>
         <td>
           <div class="jan-text">${item.barcode}</div>
-          <div style="font-size:0.75em; color:#7f8c8d; margin-bottom:2px;">${makerName}</div>
+          <div style="font-size:0.85em; color:#7f8c8d; margin-bottom:2px;">${makerName}</div>
           <b style="font-size:0.95em;">${item.itemName || item.name || "名称不明"}</b>
         </td>
         <td style="text-align:center; color:#e67e22; font-weight:bold;">${priceDisp}</td>
@@ -719,69 +719,67 @@ function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 /**
  * 🔄 ページとデータの再読み込み（ボタンの更新中表示を含む）
  */
+
 function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
   
-  // 1. 押されたボタンを特定して「更新中」状態にする
   const container = document.getElementById(pageId);
   const targetBtn = container ? container.querySelector('.btn-list-init') : null;
   const originalText = targetBtn ? targetBtn.innerText : "リスト表示";
 
+  // 1. ボタンをロック
   if (targetBtn) {
-    targetBtn.disabled = true; // 連打防止
+    targetBtn.disabled = true;
     targetBtn.innerText = "更新中...";
-    // CSSの .btn-list-init:disabled { opacity: 0.5; } が効いて半透明になります
+    targetBtn.style.opacity = "0.5"; // 直接スタイルも指定して確実にする
   }
 
-  // 2. ボタンを元の状態に戻すための共通処理
   const resetBtn = () => {
     if (targetBtn) {
       targetBtn.disabled = false;
       targetBtn.innerText = originalText;
+      targetBtn.style.opacity = "1.0";
     }
   };
 
-  // 店コードチェック（全店舗リスト以外）
   if (!shopCode && pageId !== 'pageAll') {
     alert("店コードを入力してください");
     resetBtn();
     return;
   }
 
-  // 3. 読み込み中メッセージの表示
   const targetView = document.getElementById('view_' + pageId);
-  if (targetView) {
-    targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
-  }
+  if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
 
-  // 4. 各データ取得処理（必ず Promise を return して .finally でボタンを戻す）
+  // 2. すべての処理で Promise を return する
   if (pageId === 'pageList') {
     if (mode === 'scan') {
-      return showAlertList().finally(resetBtn);
+      return showAlertList().finally(resetBtn); // ★ return が必要
     } else {
-      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">期限登録モードに切り替えてください</div>';
+      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてください</div>';
       resetBtn();
+      return Promise.resolve(); // 形式を合わせる
     }
   } 
   else if (pageId === 'pageSummary') {
     if (mode === 'scan') {
-      return loadShopDetail().finally(resetBtn);
+      return loadShopDetail().finally(resetBtn); // ★ return が必要
     } else {
-      return loadPriceCheckDetail().finally(resetBtn);
+      return loadPriceCheckDetail().finally(resetBtn); // ★ return が必要
     }
   } 
   else if (pageId === 'pageAll') {
-    return loadAllProducts().finally(resetBtn);
+    return loadAllProducts().finally(resetBtn); // ★ return が必要
   }
 }
-
+  
 function showAlertList() {
   const shopCode = document.getElementById('shopInput').value;
   const days = document.getElementById('periodSelect').value;
-  // return を追加して Promise を繋ぐ
-  return callGAS("getAlertList", { shopCode, days })
-    .then(l => renderList('pageList', l));
+  // ★ return を追加
+  return callGAS("getAlertList", { shopCode: shopCode, days: days })
+    .then(list => renderList('pageList', list));
 }
   
 
@@ -806,14 +804,11 @@ function loadPriceCheckDetail() {
  */
 function loadShopDetail() {
   const shopCode = document.getElementById('shopInput').value;
-  // return を追加
+  // ★ return を追加
   return callGAS("getShopDetailList", { shopCode: shopCode })
     .then(list => {
       list.sort((a, b) => a.serial - b.serial);
       renderList('pageSummary', list);
-    })
-    .catch(err => {
-      document.getElementById('view_pageSummary').innerHTML = "データ取得エラー";
     });
 }
   

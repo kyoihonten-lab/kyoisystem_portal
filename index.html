@@ -579,9 +579,17 @@ function getTableHeaderByMode(mode) {
  * モード別の行（TR）生成
  */
 // 補助関数：行生成
+/**
+ * モード別の行（TR）生成
+ * 新しいモードを追加する場合は、else if (mode === 'new_mode') を追加してください。
+ */
 function getRowHtmlByMode(mode, item, pageId) {
+  // どのモードでも使う共通パーツ
   const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.8em;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
-  const checkbox = `<td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>`;
+  const checkbox = `
+    <td style="text-align:center;">
+      <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}">
+    </td>`;
 
   // --- 1. 期限管理モード ---
   if (mode === 'scan') {
@@ -602,58 +610,33 @@ function getRowHtmlByMode(mode, item, pageId) {
         </td>
         <td style="text-align:center;font-weight:bold;">${item.qty}</td>
       </tr>`;
-  } 
-  
-  // --- 2. それ以外（現状は価格検索モード） ---
-  // ここを else if ではなく「それ以外すべて」にすることで return "" を消せます
-  const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
-  return `
-    <tr>
-      ${checkbox}
-      <td style="text-align:center; font-size:0.85em;">
-        ${shopHeader}
-        <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
-      </td>
-      <td>
-        <div class="jan-text">${item.barcode}</div>
-        <div style="font-size:0.75em; color:#7f8c8d;">${item.brand || item.maker || ""}</div>
-        <b style="font-size:0.95em;">${item.itemName || item.name || "名称不明"}</b>
-      </td>
-      <td style="text-align:center; color:#e67e22; font-weight:bold;">${priceDisp}</td>
-    </tr>`;
-}
-  
-async function fetchSelectedStocks() {
-  const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);
-  if (checks.length === 0) { alert("商品を選択してください"); return; }
-  const shopMap = {};
-  checks.forEach(c => {
-    const s = c.getAttribute('data-shop');
-    const id = c.getAttribute('data-id');
-    if (!shopMap[s]) shopMap[s] = [];
-    shopMap[s].push(id);
-    c.checked = false;
-  });
-  for (const shopCode of Object.keys(shopMap)) {
-    const ids = shopMap[shopCode];
-    ids.forEach(id => {
-      document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
-        el.innerText = "取得中...";
-        el.style.display = "inline-block";
-      });
-    });
-    try {
-      const res = await callGAS("getBatchStocksByIds", { shopCode, recordIds: ids });
-      if (res) {
-        Object.keys(res).forEach(id => {
-          document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
-            const val = (res[id] === undefined || res[id] === null) ? "0" : res[id];
-            el.innerHTML = `理論在庫: ${val}`;
-          });
-        });
-      }
-    } catch (e) { console.error(e); }
+
+  // --- 2. 価格検索モード ---
+  } else if (mode === 'search') {
+    const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
+    const makerName = item.brand || item.maker || ""; // メーカー・ブランド名を補強
+
+    return `
+      <tr>
+        ${checkbox}
+        <td style="text-align:center; font-size:0.85em;">
+          ${shopHeader}
+          <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
+        </td>
+        <td>
+          <div class="jan-text">${item.barcode}</div>
+          <div style="font-size:0.75em; color:#7f8c8d;">${makerName}</div>
+          <b style="font-size:0.95em;">${item.itemName || item.name || "名称不明"}</b>
+        </td>
+        <td style="text-align:center; color:#e67e22; font-weight:bold;">${priceDisp}</td>
+      </tr>`;
   }
+  
+  // --- 3. その他のモード（将来用） ---
+  // else if (mode === 'inventory') { ... }
+
+  // どのモードにも合致しない場合の安全装置
+  return ""; 
 }
 
 async function bulkDelete(pageId) {

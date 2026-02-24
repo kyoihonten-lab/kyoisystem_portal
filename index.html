@@ -27,7 +27,7 @@
   /* --- 【重要】ビデオエリア：ゾンビを排除し1つに統合 --- */
   #interactive.viewport { 
     width: 100%; 
-    height: 180px; /* 少し高さを確保 */
+    height: 200px; /* 少し高さを確保 */
     background: #000; 
     position: relative; 
     overflow: hidden; 
@@ -101,6 +101,12 @@
   .btn-action { flex: 1; height: 65px; font-size: 1.2em; font-weight: bold; border-radius: 8px; border: none; color: white; cursor: pointer; -webkit-appearance: none; }
   .btn-reg { background: #27ae60; box-shadow: 0 4px 0 #219150; }
   .btn-can { background: #e74c3c; box-shadow: 0 4px 0 #c0392b; }
+  /* 無効化されたボタンのスタイル */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none; /* クリックを完全に無視 */
+}
   
   /* ボタン・セレクト共通（高さ・幅の統一） */
   #periodSelect { width: 100%; height: 65px; font-size: 1.2em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; margin-bottom: 10px; }
@@ -161,7 +167,9 @@
     </div>
 
     <div id="scanActionArea" style="display:none;">
-      <button id="btnToggleScan" class="btn-main btn-start"onclick="startCamera()">📷 スキャンを開始</button>
+      <button id="btnToggleScan" class="btn-main btn-start" onclick="toggleScanner()">
+  📷 スキャンを開始
+</button>
       
       <div style="margin-top:20px; border-top: 1px dashed #ccc; padding-top:10px;">
         <div style="display:flex; gap:8px;">
@@ -278,10 +286,17 @@ const codeReader = new ZXing.BrowserBarcodeReader();
  * 📷 カメラ開始・停止の切り替え
  */
 async function toggleScanner() {
+  const btn = document.getElementById('btnToggleScan');
   if (isScanning) {
     stopAllCameras();
+    // 念押しでここでもボタンを書き換える
+    if (btn) {
+      btn.innerText = "📷 スキャンを開始";
+      btn.className = "btn-main btn-start";
+    }
   } else {
-    startCamera();
+    // スキャン開始
+    await startCamera();
   }
 }
 
@@ -293,42 +308,32 @@ async function startCamera() {
   const btn = document.getElementById('btnToggleScan');
   
   try {
-    // 起動前に前回の残骸をリセット
     codeReader.reset();
-    
-    // カメラのストリーム（生データ）を取得
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { 
-        facingMode: "environment", // 背面カメラ
-        width: { ideal: 1280 }, 
-        height: { ideal: 720 } 
-      } 
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
     });
     
     videoEl.srcObject = stream;
     await videoEl.play();
     
     isScanning = true;
-    btn.innerText = "🛑 停止";
-    btn.className = "btn-main btn-stop";
     
-// startCamera関数の中の「//スキャン（デコード）開始」以降を以下に書き換え
+    // ここでボタンを「停止」に変える
+    if (btn) {
+      btn.innerText = "🛑 停止";
+      btn.className = "btn-main btn-stop";
+    }
+
     codeReader.decodeContinuously(videoEl, (result, err) => {
       if (result && isScanning) {
-        // 読み取り成功！
-        console.log("読み取り成功:", result.text);
-        
-        // 連続読み取りを一時的に止めてから処理へ（二重読み込み防止）
-        isScanning = false; 
+        isScanning = false;
+        // スキャン成功時もボタンを戻すならここで stopAllCameras() を呼ぶ
         processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
-      }
-      if (err && !(err instanceof ZXing.NotFoundException)) {
-        console.error("スキャンエラー:", err);
       }
     });
   } catch (err) {
-    console.error("Camera Error:", err);
-    alert("カメラが起動できません。ブラウザの設定でカメラを許可してください。");
+    console.error(err);
+    alert("カメラを起動できません");
   }
 }
 
@@ -434,21 +439,43 @@ async function processUnifiedFlow(code, mode) {
 // --- 登録ボタン内の処理 ---
 async function sendData() {
   const btn = document.getElementById('mainRegBtn');
-  btn.disabled = true; btn.innerText = "登録中...";
-  const res = await callGAS("registerItem", { 
-    shopCode: document.getElementById('shopInput').value, 
-    shopName: currentShopName, barcode: currentCode, 
-    qty: document.getElementById('qty').value, expiryDate: document.getElementById('expiry').value 
-  });
-  if (res === "完了") { 
-    btn.innerText = "✅ 登録完了"; 
-    // カメラは止めずにUIだけ戻す
-    setTimeout(() => { resetUI(false); }, 500); 
+  if (btn.disabled) return; // すでに押されていたら何もしない
+
+  // 1. ボタンを無効化して半透明にする
+  btn.disabled = true;
+  btn.innerText = "⏳ 登録中...";
+
+  try {
+    const res = await callGAS("registerItem", { 
+      shopCode: document.getElementById('shopInput').value, 
+      shopName: currentShopName, 
+      barcode: currentCode, 
+      qty: document.getElementById('qty').value, 
+      expiryDate: document.getElementById('expiry').value 
+    });
+
+    if (res === "完了") { 
+      btn.innerText = "✅ 登録完了"; 
+      setTimeout(() => { resetUI(false); }, 500); 
+    } else {
+      alert("登録に失敗しました");
+      btn.disabled = false;
+      btn.innerText = "登録";
+    }
+  } catch (e) {
+    console.error(e);
+    btn.disabled = false;
+    btn.innerText = "登録";
   }
 }
-  
 async function saveSearchPrice() {
   const btn = document.getElementById('mainSaveBtn');
+  if (btn.disabled) return;
+
+  // 1. ボタンを無効化して半透明にする
+  btn.disabled = true;
+  btn.innerText = "⏳ 保存中...";
+
   const data = {
     name: document.getElementById('sDetailName').innerText,
     janCode: document.getElementById('sDetailJan').innerText,
@@ -458,10 +485,25 @@ async function saveSearchPrice() {
     description: document.getElementById('sDetailDesc').innerText,
     inStock: document.getElementById('sDetailStock').innerText
   };
-  btn.disabled = true; btn.innerText = "保存中...";
-  const res = await callGAS("savePriceCheckData", { data, shopCode: document.getElementById('shopInput').value, shopName: currentShopName });
-  if (res === "完了") { btn.innerText = "✅ 保存しました"; 
-                     setTimeout(() => { resetUI(false); }, 500);  }
+
+  try {
+    const res = await callGAS("savePriceCheckData", { 
+      data, 
+      shopCode: document.getElementById('shopInput').value, 
+      shopName: currentShopName 
+    });
+
+    if (res === "完了") { 
+      btn.innerText = "✅ 保存しました"; 
+      setTimeout(() => { resetUI(false); }, 500); 
+    } else {
+      btn.disabled = false;
+      btn.innerText = "保存";
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.innerText = "保存";
+  }
 }
 
 /**
@@ -516,42 +558,42 @@ async function fetchSelectedStocks() {
   const checks = document.querySelectorAll(`#view_pageAll .bulk-check:checked`);
   if (checks.length === 0) { alert("商品を選択してください"); return; }
   
+  // 店コードごとに商品IDを分けるグループ化
   const shopMap = {};
   checks.forEach(c => {
     const s = c.getAttribute('data-shop');
-    const id = c.getAttribute('data-id'); // IDを取得
+    const id = c.getAttribute('data-id');
     if (!shopMap[s]) shopMap[s] = [];
     shopMap[s].push(id);
-    c.checked = false;
+    c.checked = false; // 処理開始時にチェックを外す
   });
 
+  // 店ごとに一括リクエストを飛ばす
   for (const shopCode of Object.keys(shopMap)) {
     const ids = shopMap[shopCode];
+    
+    // 表示を「取得中...」に変える
     ids.forEach(id => {
-      // IDで表示場所を探して「取得中...」にする
       document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
         el.innerText = "取得中...";
         el.style.display = "inline-block";
       });
     });
 
-    // GAS側の新関数「getBatchStocksByIds」を呼び出し
-const res = await callGAS("getBatchStocksByIds", { shopCode, recordIds: ids });
-    
-    // resが空の場合（在庫0など）でも表示を更新するように変更
-    if (res) {
-      Object.keys(res).forEach(id => {
-        document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
-          // res[id] が 0 や null でも表示させる
-          const val = (res[id] === undefined || res[id] === null) ? "0" : res[id];
-          el.innerHTML = `理論在庫: ${val}`;
+    try {
+      // ★ ここで「その店のコード」と「その店の商品のIDリスト」を投げる
+      const res = await callGAS("getBatchStocksByIds", { shopCode, recordIds: ids });
+      
+      if (res) {
+        Object.keys(res).forEach(id => {
+          document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => {
+            const val = (res[id] === undefined || res[id] === null) ? "0" : res[id];
+            el.innerHTML = `理論在庫: ${val}`;
+          });
         });
-      });
-    } else {
-      // 通信失敗時などは表示を戻す
-      ids.forEach(id => {
-        document.querySelectorAll(`.stock-val[data-id="${id}"]`).forEach(el => { el.innerText = "取得失敗"; });
-      });
+      }
+    } catch (e) {
+      console.error("Stock fetch error for shop " + shopCode, e);
     }
   }
 }
@@ -624,8 +666,23 @@ function handleManualUnified() { const code = document.getElementById('manualJan
 function handleScroll() { const btn = document.getElementById('backToTop'); if (btn) btn.style.display = (window.pageYOffset > 300) ? 'flex' : 'none'; }
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function refreshPage(pageId) { if(pageId === 'pageList') showAlertList(); else if(pageId === 'pageSummary') loadShopDetail(); else if(pageId === 'pageAll') loadAllProducts(); }
-function showAlertList() { callGAS("getAlertList", { shopCode: document.getElementById('shopInput').value, days: document.getElementById('periodSelect').value }).then(l => renderList('pageList', l)); }
-function loadShopDetail() { callGAS("getShopDetailList", { shopCode: document.getElementById('shopInput').value }).then(l => renderList('pageSummary', l)); }
+// 在庫チェック画面
+function showAlertList() {
+  const shopCode = document.getElementById('shopInput').value; // ここを確実に取る
+  const days = document.getElementById('periodSelect').value;
+  if(!shopCode) { alert("店舗コードを入力してください"); return; }
+
+  callGAS("getAlertList", { shopCode, days }).then(l => renderList('pageList', l));
+}
+  
+// 登録リスト画面
+function loadShopDetail() {
+  const shopCode = document.getElementById('shopInput').value;
+  if(!shopCode) return;
+
+  callGAS("getShopDetailList", { shopCode }).then(l => renderList('pageSummary', l));
+}
+  
 function loadAllProducts() { callGAS("getAllProductList").then(l => renderList('pageAll', l)); }
 </script>
 </body>

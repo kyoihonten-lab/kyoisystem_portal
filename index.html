@@ -870,6 +870,7 @@ function loadAllProducts() {
   
  /**
  * 🌍 全店舗リスト用：チェックした商品の理論在庫を一括取得して表示
+ * 取得開始時にチェックを自動で外すように改良
  */
 async function fetchSelectedStocks() {
   const checks = document.querySelectorAll('#view_pageAll .bulk-check:checked');
@@ -881,18 +882,21 @@ async function fetchSelectedStocks() {
   if (btn) {
     btn.disabled = true;
     btn.innerText = "在庫照会中...";
-    btn.style.opacity = "0.5"; // 他のボタンと合わせて半透明にする
+    btn.style.opacity = "0.5";
   }
 
-  // チェックされた行からJANと店コードを抽出
+  // 1. チェックされた行から情報を抽出
   const targets = Array.from(checks).map(c => ({
     barcode: c.getAttribute('data-jan'),
     shopCode: c.getAttribute('data-shop'),
     recordId: c.getAttribute('data-id')
   }));
 
+  // ★ 2. 処理が走り出したらチェックを外す
+  checks.forEach(c => { c.checked = false; });
+
   try {
-    // GASに一括問い合わせ（アクション名は getBulkStocks で固定）
+    // GASに一括問い合わせ
     const results = await callGAS("getBulkStocks", { targets });
     
     if (results && typeof results === 'object') {
@@ -902,11 +906,10 @@ async function fetchSelectedStocks() {
         if (badge) {
           const stock = results[t.recordId] !== undefined ? results[t.recordId] : "不明";
           badge.innerText = "理論在庫: " + stock;
-          badge.style.display = "inline-block"; // 非表示だったバッジを表示
+          badge.style.display = "inline-block"; 
         }
       });
     } else {
-      // ⚠️ ここで「失敗」が出る場合はGAS側の doPost のアクション名を確認
       alert("在庫データの取得に失敗しました");
     }
   } catch (e) {
@@ -916,7 +919,7 @@ async function fetchSelectedStocks() {
     if (btn) {
       btn.disabled = false;
       btn.innerText = originalText;
-      btn.style.opacity = "1.0"; // 元に戻す
+      btn.style.opacity = "1.0";
     }
   }
 }

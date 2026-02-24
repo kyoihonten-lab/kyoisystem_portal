@@ -573,13 +573,25 @@ function resetUI(shouldStopCamera = false) {
 } // ← ここでしっかり閉じる
   
 function showPage(pageId) {
-  stopAllCameras();
+  try {
+    stopAllCameras(); // ここでエラーが出ても止まらないようにする
+  } catch(e) { console.error(e); }
+
   if (pageId === 'pageScan') resetUI(false);
+  
+  // ページの表示切り替え（unifiedPageへの対応）
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const target = (pageId === 'pageScan') ? 'unifiedPage' : pageId;
-  document.getElementById(target).classList.add('active');
-  const navs = document.querySelectorAll('.nav-item'), pages = ['pageScan','pageList','pageSummary','pageAll'];
+  const targetId = (pageId === 'pageScan') ? 'unifiedPage' : pageId;
+  const targetEl = document.getElementById(targetId);
+  if (targetEl) targetEl.classList.add('active');
+
+  // ナビゲーションのactive切り替え
+  const navs = document.querySelectorAll('.nav-item');
+  const pages = ['pageScan','pageList','pageSummary','pageAll'];
   navs.forEach((n, i) => n.classList.toggle('active', pages[i] === pageId));
+  
+  // データの自動読み込み
+  refreshPage(pageId);
   scrollToTop();
 }
 

@@ -149,12 +149,11 @@
 </div>
 
 <div id="unifiedPage" class="page active">
-  <div id="interactive" class="viewport">
-<video id="video" autoplay muted playsinline webkit-playsinline style="width: 100%; height: 100%; object-fit: cover; background-color: #000;">
-</video>
-    <div class="scan-overlay"></div>
-    <div class="scan-line"></div>
-  </div>
+<div id="interactive" class="viewport">
+  <video id="video" autoplay muted playsinline></video>
+  <div class="scan-overlay"></div>
+  <div class="scan-line"></div>
+</div>
   
   <div class="form-group">
     <div id="shopLockMessage" style="text-align:center; padding:20px; color:#e74c3c; font-weight:bold; background:#fdeaea; border-radius:8px; margin-bottom:10px;">
@@ -178,7 +177,7 @@
       <div class="input-row"><label>期限</label><input type="date" id="expiry"></div>
       <div class="input-row"><label>数量</label><input type="number" id="qty" inputmode="numeric" value="1"></div>
       <div style="display:flex; gap:10px;">
-        <button class="btn-action btn-can" onclick="resetUI()">取消</button>
+        <button class="btn-action btn-can" onclick="resetUI(false)">取消</button>
         <button id="mainRegBtn" class="btn-action btn-reg" onclick="sendData()" disabled>登録</button>
       </div>
     </div>
@@ -201,7 +200,7 @@
         </div>
       </div>
       <div style="display:flex; gap:10px;">
-        <button class="btn-action btn-can" onclick="resetUI()">戻る</button>
+        <button class="btn-action btn-can" onclick="resetUI(false)">戻る</button>
         <button id="mainSaveBtn" class="btn-action btn-reg" onclick="saveSearchPrice()">保存</button>
       </div>
     </div>
@@ -236,8 +235,8 @@
   <div style="padding:10px;">
     <button class="btn-list-init" onclick="loadAllProducts()">全店舗リスト表示</button>
     <div style="display:flex; gap:8px; margin-bottom:10px;">
-      <button id="btnStockAll" class="btn-stock-large" style="flex:1;" onclick="fetchSelectedStocks()">チェック在庫確認</button>
-      <button id="btnComplete_pageAll" class="btn-bulk" style="flex:1; margin:0;" onclick="bulkDelete('pageAll')">一括完了</button>
+      <button id="btnStockAll" class="btn-stock-large" style="flex:1;" onclick="fetchSelectedStocks()">チェック商品在庫確認</button>
+      <button id="btnComplete_pageAll" class="btn-bulk" style="flex:1; margin:0;" onclick="bulkDelete('pageAll')">データ削除</button>
     </div>
     <div id="view_pageAll"></div>
   </div>
@@ -274,37 +273,89 @@ let codeReader = new ZXing.BrowserBarcodeReader();
 /**
  * 📷 カメラ・UI制御（あなたのロジックを100%継承）
  */
-async function toggleScanner() { isScanning ? stopAllCameras() : startCamera(); }
+let isScanning = false;
+const codeReader = new ZXing.BrowserBarcodeReader();
 
+/**
+ * 📷 カメラ開始・停止の切り替え
+ */
+async function toggleScanner() {
+  if (isScanning) {
+    stopAllCameras();
+  } else {
+    startCamera();
+  }
+}
+
+/**
+ * 📷 カメラ起動
+ */
 async function startCamera() {
   const videoEl = document.getElementById('video');
+  const btn = document.getElementById('btnToggleScan');
+  
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    // 起動前に前回の残骸をリセット
+    codeReader.reset();
+    
+    // カメラのストリーム（生データ）を取得
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: "environment", // 背面カメラ
+        width: { ideal: 1280 }, 
+        height: { ideal: 720 } 
+      } 
+    });
+    
     videoEl.srcObject = stream;
     await videoEl.play();
-    isScanning = true;
-    const btn = document.getElementById('btnToggleScan');
-    btn.innerText = "🛑 停止"; btn.className = "btn-main btn-stop";
     
-    codeReader.decodeFromVideoElement(videoEl, (result) => {
+    isScanning = true;
+    btn.innerText = "🛑 停止";
+    btn.className = "btn-main btn-stop";
+    
+    // スキャン（デコード）開始
+    codeReader.decodeFromVideoElement(videoEl, (result, err) => {
       if (result && isScanning) {
-        stopAllCameras();
+        // バーコードを検知したら即座に物理停止させる
+        stopAllCameras(); 
         processUnifiedFlow(result.text, document.getElementById('mainModeSelect').value);
       }
     });
-  } catch (err) { alert("カメラ起動失敗: " + err.message); }
+  } catch (err) {
+    console.error("Camera Error:", err);
+    alert("カメラが起動できません。ブラウザの設定でカメラを許可してください。");
+  }
 }
 
+/**
+ * 🛑 カメラを物理的に停止・解放する
+ */
 function stopAllCameras() {
   isScanning = false;
+  
+  // 1. ZXingライブラリのデコード動作を停止
   codeReader.reset();
+  
+  // 2. カメラのレンズ（ハードウェア）をオフにする
   const videoEl = document.getElementById('video');
   if (videoEl && videoEl.srcObject) {
-    videoEl.srcObject.getTracks().forEach(track => track.stop());
-    videoEl.srcObject = null;
+    const stream = videoEl.srcObject;
+    const tracks = stream.getTracks();
+    
+    tracks.forEach(track => {
+      track.stop(); // ここでレンズの電源を落とすイメージ
+    });
+    
+    videoEl.srcObject = null; // 映像との接続を解除
   }
+  
+  // UI表示を元に戻す
   const btn = document.getElementById('btnToggleScan');
-  if (btn) { btn.innerText = "📷 スキャンを開始"; btn.className = "btn-main btn-start"; }
+  if (btn) {
+    btn.innerText = "📷 スキャンを開始";
+    btn.className = "btn-main btn-start";
+  }
 }
 
 async function processShopCode() {
@@ -370,6 +421,7 @@ async function processUnifiedFlow(code, mode) {
   }
 }
 
+// --- 登録ボタン内の処理 ---
 async function sendData() {
   const btn = document.getElementById('mainRegBtn');
   btn.disabled = true; btn.innerText = "登録中...";
@@ -378,9 +430,13 @@ async function sendData() {
     shopName: currentShopName, barcode: currentCode, 
     qty: document.getElementById('qty').value, expiryDate: document.getElementById('expiry').value 
   });
-  if (res === "完了") { btn.innerText = "✅ 登録しました"; setTimeout(resetUI, 500); }
+  if (res === "完了") { 
+    btn.innerText = "✅ 登録完了"; 
+    // カメラは止めずにUIだけ戻す
+    setTimeout(() => { resetUI(false); }, 500); 
+  }
 }
-
+  
 async function saveSearchPrice() {
   const btn = document.getElementById('mainSaveBtn');
   const data = {
@@ -394,7 +450,8 @@ async function saveSearchPrice() {
   };
   btn.disabled = true; btn.innerText = "保存中...";
   const res = await callGAS("savePriceCheckData", { data, shopCode: document.getElementById('shopInput').value, shopName: currentShopName });
-  if (res === "完了") { btn.innerText = "✅ 保存しました"; setTimeout(resetUI, 500); }
+  if (res === "完了") { btn.innerText = "✅ 保存しました"; 
+                     setTimeout(() => { resetUI(false); }, 500);  }
 }
 
 /**
@@ -462,19 +519,43 @@ async function bulkDelete(pageId) {
   if (res) { alert("完了しました"); refreshPage(pageId); }
 }
 
-function resetUI() {
-  isFetching = false; stopAllCameras();
+  /**
+ * UIのリセット（カメラを止めるかどうかを引数で制御）
+ * @param {boolean} shouldStopCamera - trueならカメラを止める
+ */
+function resetUI(shouldStopCamera = false) {
+  isFetching = false;
+  
+  // 指定された場合のみカメラを停止（停止ボタンやタブ切り替え時）
+  if (shouldStopCamera) {
+    stopAllCameras();
+  }
+
   document.getElementById('editArea').style.display = 'none';
   document.getElementById('searchDetailArea').style.display = 'none';
   document.getElementById('manualJan').value = "";
-  if (currentShopName) document.getElementById('scanActionArea').style.display = 'block';
-  document.getElementById('mainRegBtn').disabled = true; document.getElementById('mainRegBtn').innerText = "登録";
-  document.getElementById('mainSaveBtn').disabled = true; document.getElementById('mainSaveBtn').innerText = "保存";
-}
+  
+  // 店コードがあればスキャン開始ボタンを表示（カメラ稼働中ならボタンの文字は「停止」のまま）
+  if (currentShopName) {
+    document.getElementById('scanActionArea').style.display = 'block';
+  }
+  
+  // ボタンの状態を元に戻す
+  const regBtn = document.getElementById('mainRegBtn');
+  const saveBtn = document.getElementById('mainSaveBtn');
+  regBtn.disabled = true; regBtn.innerText = "登録";
+  saveBtn.disabled = true; saveBtn.innerText = "保存";
 
+  // カメラが動いている（isScanningがtrue）なら、即座に再スキャンを受け付け可能にする
+  if (isScanning) {
+    // ZXingのデコードを継続、またはリセットして再開
+    startCamera(); 
+  }
+}
+  
 function showPage(pageId) {
   stopAllCameras();
-  if (pageId === 'pageScan') resetUI();
+  if (pageId === 'pageScan') resetUI(false);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const target = (pageId === 'pageScan') ? 'unifiedPage' : pageId;
   document.getElementById(target).classList.add('active');

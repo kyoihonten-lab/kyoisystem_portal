@@ -621,11 +621,12 @@ function getTableHeaderByMode(mode, pageId) {
  */
 
 function getRowHtmlByMode(mode, item, pageId) {
-  // 店コード・店名をJANコードと同じサイズ感（jan-textクラス相当）に調整
+  // 店コード・店名
   const shopHeader = `<div class="shop-info jan-text" style="color:#666; margin-bottom:2px;">${item.shopCode || ''}　 ${item.shopName || ''}</div>`;
+  // チェックボックス
   const checkbox = `<td style="text-align:center;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}"></td>`;
 
-if (mode === 'scan') {
+  if (mode === 'scan') {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const dateStr = item.expiry || "";
@@ -636,6 +637,7 @@ if (mode === 'scan') {
       ? `<div class="stock-badge stock-val" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="display:none;"></div>`
       : `<div class="stock-badge">理論在庫: ${item.dataStock || '0'}</div>`;
 
+    // ★リターン文の中身を整理しました
     return `
       <tr class="${rowClass}">
         ${checkbox}
@@ -648,15 +650,14 @@ if (mode === 'scan') {
           <b>${item.itemName || item.name || "名称不明"}</b>
           ${stockDisplay}
         </td>
-// getRowHtmlByMode 内の数量セル部分
-<td class="qty-cell" style="text-align:center; vertical-align:middle;">
-  <div onclick="editQty('${item.recordId}', ${item.qty})" 
-       style="display:inline-block; width:55px; height:35px; line-height:35px; 
-              border: 1px solid #3498db; border-radius: 4px; background: #fff; 
-              color: #333; font-weight: bold; cursor: pointer; overflow: hidden; transition: 0.3s;">
-    <span id="qty-val-${item.recordId}" style="font-size: 1.1em;">${item.qty}</span>
-  </div>
-</td>
+        <td class="qty-cell" style="text-align:center; vertical-align:middle;">
+          <div onclick="editQty('${item.recordId}', ${item.qty})" 
+               style="display:inline-block; width:55px; height:35px; line-height:35px; 
+                      border: 1px solid #3498db; border-radius: 4px; background: #fff; 
+                      color: #333; font-weight: bold; cursor: pointer; overflow: hidden; transition: 0.3s;">
+            <span id="qty-val-${item.recordId}" style="font-size: 1.1em;">${item.qty}</span>
+          </div>
+        </td>
       </tr>`;
 
   } else if (mode === 'search') {

@@ -604,7 +604,7 @@ function getTableHeaderByMode(mode, pageId) {
   // 「選択」の文字の下に、全選択用のチェックボックスを配置
   const selectHeader = `
     <th style="text-align:center; width:50px;">
-      選択<br>
+      一括選択<br>
       <input type="checkbox" id="selectAll_${pageId}" 
              onclick="toggleAllChecks(this, '${pageId}')" 
              style="width:20px; height:20px; margin-top:4px; cursor:pointer;">
@@ -648,12 +648,13 @@ if (mode === 'scan') {
           <b>${item.itemName || item.name || "名称不明"}</b>
           ${stockDisplay}
         </td>
- <td class="qty-cell" style="text-align:center; vertical-align:middle;">
+// getRowHtmlByMode 内の数量セル部分
+<td class="qty-cell" style="text-align:center; vertical-align:middle;">
   <div onclick="editQty('${item.recordId}', ${item.qty})" 
-       style="display:inline-block; width:45px; height:35px; line-height:35px; 
+       style="display:inline-block; width:55px; height:35px; line-height:35px; 
               border: 1px solid #3498db; border-radius: 4px; background: #fff; 
-              color: #007bff; font-weight: bold; font-size: 1.1em; cursor: pointer;">
-    <span id="qty-val-${item.recordId}">${item.qty}</span>
+              color: #333; font-weight: bold; cursor: pointer; overflow: hidden; transition: 0.3s;">
+    <span id="qty-val-${item.recordId}" style="font-size: 1.1em;">${item.qty}</span>
   </div>
 </td>
       </tr>`;
@@ -976,36 +977,47 @@ async function fetchSelectedStocks() {
 }
 
 async function editQty(recordId, oldQty) {
-  // 1. 入力ウィンドウを表示
   const newQty = prompt("新しい数量を入力してください", oldQty);
   
-  // キャンセルや未入力、変更なしなら終了
+  // キャンセルや無効な入力は即終了
   if (newQty === null || newQty === "" || newQty == oldQty) return;
-  
   const num = parseInt(newQty);
-  if (isNaN(num) || num <= 0) {
-    alert("1以上の数字を入力してください");
-    return;
-  }
+  if (isNaN(num) || num <= 0) return alert("1以上の数字を入力してください");
+
+  // --- 更新開始の演出 ---
+  const displayElem = document.getElementById(`qty-val-${recordId}`);
+  const parentBox = displayElem.parentElement;
+  
+  // 窓の中を「更新中」に変更し、少し色を薄くする
+  const originalHtml = displayElem.innerHTML; 
+  displayElem.style.fontSize = "10px"; // 文字を小さくして収める
+  displayElem.innerText = "更新中...";
+  parentBox.style.opacity = "0.6";
+  parentBox.style.pointerEvents = "none"; // 連打防止
 
   try {
-    // 2. GASの更新関数を呼び出す
     const res = await callGAS("updateStockQty", { recordId: recordId, newQty: num });
     
     if (res === "完了") {
-      // 3. 画面上の表示を書き換え
-      const displayElem = document.getElementById(`qty-val-${recordId}`);
-      if (displayElem) {
-        displayElem.innerText = num;
-        // 成功したことがわかるように、一瞬色を変える（任意）
-        displayElem.parentElement.style.backgroundColor = "#e8f5e9";
-        setTimeout(() => { displayElem.parentElement.style.backgroundColor = "#fff"; }, 500);
-      }
+      // --- 更新成功 ---
+      displayElem.style.fontSize = "1.1em"; // サイズを戻す
+      displayElem.innerText = num;
+      displayElem.style.color = "#333"; // 黒に戻す
+      parentBox.style.backgroundColor = "#e8f5e9"; // 一瞬成功の緑色に
+       // 次回のクリック用に引数 oldQty の役割を更新
+      parentBox.setAttribute("onclick", `editQty('${recordId}', ${num})`);
     } else {
       alert("エラー: " + res);
+      displayElem.innerText = oldQty; // 失敗したら元の数字に戻す
     }
   } catch (e) {
     alert("通信エラーが発生しました");
+    displayElem.innerText = oldQty;
+  } finally {
+    // --- 状態を戻す ---
+    parentBox.style.opacity = "1";
+    parentBox.style.pointerEvents = "auto";
+    setTimeout(() => { parentBox.style.backgroundColor = "#fff"; }, 800);
   }
 }
 

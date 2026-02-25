@@ -25,49 +25,40 @@
   background-color: white; /* 背景が透けないように */
 }
   /* ヘッダー全体を固定 */
+/* 1段目: メインヘッダー (45px) */
 .header { 
-  background: #3498db; 
-  color: white; 
-  padding: 10px; 
-  font-weight: bold; 
-  font-size: 1.2em; 
-  position: sticky; 
-  top: 0; 
-  z-index: 105; /* 一番上に */
-  text-align:center; 
+  background: #3498db; color: white; height: 45px; line-height: 45px;
+  padding: 0; font-weight: bold; font-size: 1.2em; text-align: center;
+  position: sticky; top: 0; z-index: 110; margin: 0;
 }
 
+/* 2段目: 店コードエリア (55px) */
 .shop-area { 
-  background: #fff; 
-  padding: 10px; 
-  border-bottom: 2px solid #ddd; 
-  display: flex; 
-  align-items: center;
-  position: sticky; 
-  top: 42px; /* .headerの高さ分 */
-  z-index: 104; 
+  background: #fff; height: 55px; padding: 0 10px; border-bottom: 2px solid #ddd;
+  display: flex; align-items: center; position: sticky; 
+  top: 45px; /* headerの高さ */
+  z-index: 109; margin: 0; box-sizing: border-box;
 }
 
-/* モード選択エリア（selectが入っているdiv） */
-#unifiedPage > div[style*="background: #fff; padding: 10px;"],
+/* 3段目: モード選択エリア (65px) */
+/* unifiedPage直下、および各ページ内の最初のdiv（ボタン類を包むdiv）を対象 */
+#unifiedPage > div:first-child,
 #pageList > div:first-child,
 #pageSummary > div:first-child,
 #pageAll > div:first-child {
-  position: sticky;
-  top: 97px; /* header + shop-area の合計 */
-  z-index: 103;
-  background: white;
-  border-bottom: 1px solid #ddd;
+  position: sticky; 
+  top: 100px; /* 45 + 55 */
+  z-index: 108; background: white; margin: 0 !important;
+  padding: 10px !important; border-bottom: 1px solid #ddd;
+  box-sizing: border-box;
 }
 
-/* リストのヘッダー（選択・期限など） */
+/* 4段目: リストの項目名ヘッダー (約35px) */
 .list-table thead th {
-  position: sticky;
-  top: 120px; /* 上記すべての要素の下に来るように調整 */
-  background-color: #eee;
-  z-index: 90;
-  border-bottom: 2px solid #ccc;
-  padding: 8px 4px;
+  position: sticky; 
+  top: 165px; /* 100 + モードエリアの高さ(約65) */
+  background-color: #eee; z-index: 107;
+  border-bottom: 2px solid #ccc; padding: 8px 4px; margin: 0;
 }
 .shop-area { 
   background: #fff; 
@@ -346,19 +337,19 @@ button:disabled {
 </div>
             
 <div id="qtyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:3000; align-items:center; justify-content:center;">
-  <div style="background:white; width:90%; max-width:400px; border-radius:16px; padding:24px; box-sizing:border-box; box-shadow:0 20px 40px rgba(0,0,0,0.4);">
+  <div style="background:white; width:88%; max-width:340px; border-radius:16px; padding:24px; box-sizing:border-box; box-shadow:0 15px 35px rgba(0,0,0,0.4);">
     
-    <div id="modalProductInfo" style="font-size:1.1em; font-weight:bold; color:#333; margin-bottom:4px; white-space:pre-wrap; line-height:1.4; text-align:center;"></div>
-    <div id="modalJanInfo" style="font-size:0.85em; color:#888; text-align:center; margin-bottom:20px; letter-spacing:1px;"></div>
+    <div id="modalProductInfo" style="font-size:1.1em; font-weight:bold; color:#333; margin-bottom:4px; line-height:1.4; text-align:left;"></div>
+    <div id="modalJanInfo" style="font-size:0.85em; color:#888; margin-bottom:20px; text-align:left;"></div>
     
-    <div style="text-align:center; font-size:0.9em; color:#555; margin-bottom:8px;">変更後の数量</div>
+    <div style="text-align:left; font-size:0.9em; font-weight:bold; color:#555; margin-bottom:8px;">変更後の数量</div>
     
     <input type="number" id="modalQtyInput" inputmode="numeric" pattern="[0-9]*" 
-           style="width:100%; height:60px; font-size:2em; text-align:center; border:2px solid #3498db; border-radius:12px; margin-bottom:24px; background:#f8fbfe; font-weight:bold; color:#333; outline:none; -webkit-appearance:none;">
+           style="width:100%; height:60px; font-size:2.2em; text-align:center; border:2px solid #3498db; border-radius:12px; margin-bottom:24px; font-weight:bold; color:#333; box-sizing:border-box; outline:none; background-color:#f8fbfe;">
     
     <div style="display:flex; gap:12px;">
-      <button onclick="closeQtyModal()" style="flex:1; height:55px; border-radius:10px; border:1px solid #ddd; background:#f1f1f1; color:#666; font-weight:bold; font-size:1em; cursor:pointer;">キャンセル</button>
-      <button id="modalConfirmBtn" style="flex:1; height:55px; border-radius:10px; border:none; background:#27ae60; color:white; font-weight:bold; font-size:1.1em; box-shadow:0 4px 0 #219150; cursor:pointer;">更新する</button>
+      <button onclick="closeQtyModal()" style="flex:1; height:50px; border-radius:10px; border:1px solid #ddd; background:#f1f1f1; color:#666; font-weight:bold; font-size:1em; cursor:pointer;">戻る</button>
+      <button id="modalConfirmBtn" style="flex:1; height:50px; border-radius:10px; border:none; background:#27ae60; color:white; font-weight:bold; font-size:1.1em; box-shadow:0 4px 0 #219150;">更新</button>
     </div>
   </div>
 </div>

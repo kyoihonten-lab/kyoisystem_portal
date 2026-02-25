@@ -465,13 +465,13 @@ async function processUnifiedFlow(code, mode) {
 }
 
 async function sendData() {
-  // 1. 数量の入力チェック ★ここに追加
   const qtyInput = document.getElementById('qty');
   const qtyValue = qtyInput.value;
   
+  // 数量未入力（または0以下）ならストップ
   if (!qtyValue || qtyValue <= 0) {
     alert("数量を正しく入力してください");
-    qtyInput.focus(); // 入力しやすいようにカーソルを合わせる
+    qtyInput.focus();
     return;
   }
 
@@ -485,13 +485,13 @@ async function sendData() {
       shopCode: document.getElementById('shopInput').value, 
       shopName: currentShopName, 
       barcode: currentCode, 
-      qty: qtyValue, // チェック済みの値を使用
+      qty: qtyValue, 
       expiryDate: document.getElementById('expiry').value 
     });
 
     if (res === "完了") { 
       btn.innerText = "✅ 登録完了"; 
-      // resetUI内で数量もブランクになるように設定済み
+      // ★ ここで resetUI が呼ばれ、数量が空になります
       setTimeout(() => { resetUI(false); }, 500); 
     } else {
       alert("登録に失敗しました: " + res);
@@ -683,18 +683,34 @@ function resetUI(shouldStopCamera = false) {
   } else {
     startCamera(); 
   }
+  
+  // 各種表示エリアを隠す
   document.getElementById('editArea').style.display = 'none';
   document.getElementById('searchDetailArea').style.display = 'none';
   document.getElementById('manualJan').value = ""; 
+
+  // ★ 数量入力欄をブランクにする
+  const qtyInput = document.getElementById('qty');
+  if (qtyInput) {
+    qtyInput.value = ""; 
+  }
+
   if (currentShopName) {
     document.getElementById('scanActionArea').style.display = 'block';
   }
+
+  // ボタンの状態を元に戻す
   const regBtn = document.getElementById('mainRegBtn');
   const saveBtn = document.getElementById('mainSaveBtn');
-  if (regBtn) { regBtn.disabled = true; regBtn.innerText = "登録"; }
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = "保存"; }
+  if (regBtn) { 
+    regBtn.disabled = true; // 登録後は一旦無効化（次のスキャンを待つ）
+    regBtn.innerText = "登録"; 
+  }
+  if (saveBtn) { 
+    saveBtn.disabled = true; 
+    saveBtn.innerText = "保存"; 
+  }
 }
-
 function showPage(pageId) {
   try { stopAllCameras(); } catch(e) {}
   

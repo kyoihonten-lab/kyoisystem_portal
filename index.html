@@ -789,6 +789,10 @@ function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
+  // ページを切り替えたり更新したりするときに、全選択チェックを外しておく
+  
+  const masterCheck = document.getElementById('selectAll_' + pageId);
+  if (masterCheck) masterCheck.checked = false;
   
   // 1. ページ要素とボタンの特定
   if (pageId === 'pageScan' || pageId === 'unifiedPage') return;
@@ -1004,6 +1008,26 @@ async function editQty(recordId, oldQty) {
     alert("通信エラーが発生しました");
   }
 }
+
+/**
+ * 全選択・全解除の制御
+ * @param {HTMLElement} source - クリックされた親チェックボックス
+ * @param {string} pageId - 対象のページID（'pageList', 'pageSummary' など）
+ */
+function toggleAllChecks(source, pageId) {
+  // そのページ（view_pageListなど）の中にあるチェックボックスだけを対象にする
+  const container = document.getElementById('view_' + pageId);
+  if (!container) return;
+  
+  // 各行に付与されている 'bulk-check' クラスのチェックボックスをすべて取得
+  const checkboxes = container.querySelectorAll('.bulk-check');
+  
+  checkboxes.forEach(cb => {
+    // 一番上のチェック（source）と同じ状態（チェックあり/なし）にする
+    cb.checked = source.checked;
+  });
+}
+  
   
 window.onscroll = handleScroll;
 </script>

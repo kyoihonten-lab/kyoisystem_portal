@@ -155,12 +155,6 @@ button:disabled {
   position: relative;
 }
 
-/* 任意：ボタンの中に「削除中...」と出すなら */
-.btn-bulk:disabled::after {
-  content: "...処理中";
-  font-size: 0.8em;
-  margin-left: 5px;
-}  
   
   /* ボタン・セレクト共通（高さ・幅の統一） */
   #periodSelect { width: 100%; height: 65px; font-size: 1.2em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; margin-bottom: 10px; }
@@ -822,6 +816,7 @@ function resetUI(shouldStopCamera = false) {
     saveBtn.innerText = "保存"; 
   }
 }
+  
 function showPage(pageId) {
   try { stopAllCameras(); } catch(e) {}
   

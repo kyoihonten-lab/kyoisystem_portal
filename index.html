@@ -978,50 +978,55 @@ async function fetchSelectedStocks() {
 }
 
 async function editQty(recordId, oldQty) {
-  const newQty = prompt("新しい数量を入力してください", oldQty);
+  // 画面からJANと商品名を取得（表示されているIDやクラスを利用）
+  // ※getRowHtmlByModeで作成した構造から、商品名とJANを特定します
+  const parentRow = document.getElementById(`qty-val-${recordId}`).closest('tr');
+  const jan = parentRow.querySelector('.jan-text').innerText;
+  const itemName = parentRow.querySelector('b').innerText;
+
+  // ★ポップアップにJANと商品名を表示
+  const message = `【商品修正】\n${jan}\n${itemName}\n\n現在の数量: ${oldQty}\n変更後の数量を入力してください:`;
+  const newQty = prompt(message, oldQty);
   
   // キャンセルや無効な入力は即終了
   if (newQty === null || newQty === "" || newQty == oldQty) return;
   const num = parseInt(newQty);
   if (isNaN(num) || num <= 0) return alert("1以上の数字を入力してください");
 
-  // --- 更新開始の演出 ---
+  // --- 以降、更新演出 ---
   const displayElem = document.getElementById(`qty-val-${recordId}`);
   const parentBox = displayElem.parentElement;
   
-  // 窓の中を「更新中」に変更し、少し色を薄くする
-  const originalHtml = displayElem.innerHTML; 
-  displayElem.style.fontSize = "10px"; // 文字を小さくして収める
+  displayElem.style.fontSize = "10px";
   displayElem.innerText = "更新中...";
-  parentBox.style.opacity = "0.6";
-  parentBox.style.pointerEvents = "none"; // 連打防止
+  displayElem.style.color = "#aaa";
+  parentBox.style.pointerEvents = "none";
 
   try {
     const res = await callGAS("updateStockQty", { recordId: recordId, newQty: num });
     
     if (res === "完了") {
-      // --- 更新成功 ---
-      displayElem.style.fontSize = "1.1em"; // サイズを戻す
+      displayElem.style.fontSize = "1.1em";
       displayElem.innerText = num;
-      displayElem.style.color = "#333"; // 黒に戻す
-      parentBox.style.backgroundColor = "#e8f5e9"; // 一瞬成功の緑色に
-       // 次回のクリック用に引数 oldQty の役割を更新
+      displayElem.style.color = "#333";
+      parentBox.style.backgroundColor = "#e8f5e9";
+      // 次回のクリック用にonclickの引数も更新
       parentBox.setAttribute("onclick", `editQty('${recordId}', ${num})`);
     } else {
       alert("エラー: " + res);
-      displayElem.innerText = oldQty; // 失敗したら元の数字に戻す
+      displayElem.innerText = oldQty;
+      displayElem.style.color = "#333";
     }
   } catch (e) {
     alert("通信エラーが発生しました");
     displayElem.innerText = oldQty;
+    displayElem.style.color = "#333";
   } finally {
-    // --- 状態を戻す ---
-    parentBox.style.opacity = "1";
     parentBox.style.pointerEvents = "auto";
     setTimeout(() => { parentBox.style.backgroundColor = "#fff"; }, 800);
   }
 }
-
+  
 /**
  * 全選択・全解除の制御
  * @param {HTMLElement} source - クリックされた親チェックボックス

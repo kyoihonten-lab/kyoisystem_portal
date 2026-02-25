@@ -196,7 +196,7 @@ button:disabled {
       <div id="janDisplay" class="jan-text"></div>
       <div id="itemNameDisplay" style="font-size:1.2em; font-weight:bold; color:#d35400; margin-bottom:12px;"></div>
       <div class="input-row"><label>期限</label><input type="date" id="expiry"></div>
-      <div class="input-row"><label>数量</label><input type="number" id="qty" inputmode="numeric" value="1"></div>
+      <div class="input-row"><label>数量</label><input type="number" id="qty" inputmode="numeric" placeholder="数量" min="1"></div>
       <div style="display:flex; gap:10px;">
         <button class="btn-action btn-can" onclick="resetUI(false)">取消</button>
         <button id="mainRegBtn" class="btn-action btn-reg" onclick="sendData()" disabled>登録</button>
@@ -465,32 +465,47 @@ async function processUnifiedFlow(code, mode) {
 }
 
 async function sendData() {
+  // 1. 数量の入力チェック ★ここに追加
+  const qtyInput = document.getElementById('qty');
+  const qtyValue = qtyInput.value;
+  
+  if (!qtyValue || qtyValue <= 0) {
+    alert("数量を正しく入力してください");
+    qtyInput.focus(); // 入力しやすいようにカーソルを合わせる
+    return;
+  }
+
   const btn = document.getElementById('mainRegBtn');
   if (btn.disabled) return;
   btn.disabled = true;
   btn.innerText = "⏳ 登録中...";
+
   try {
     const res = await callGAS("registerItem", { 
       shopCode: document.getElementById('shopInput').value, 
       shopName: currentShopName, 
       barcode: currentCode, 
-      qty: document.getElementById('qty').value, 
+      qty: qtyValue, // チェック済みの値を使用
       expiryDate: document.getElementById('expiry').value 
     });
+
     if (res === "完了") { 
       btn.innerText = "✅ 登録完了"; 
+      // resetUI内で数量もブランクになるように設定済み
       setTimeout(() => { resetUI(false); }, 500); 
     } else {
-      alert("登録に失敗しました");
+      alert("登録に失敗しました: " + res);
       btn.disabled = false;
       btn.innerText = "登録";
     }
   } catch (e) {
+    console.error(e);
+    alert("通信エラーが発生しました");
     btn.disabled = false;
     btn.innerText = "登録";
   }
 }
-
+  
 async function saveSearchPrice() {
   const btn = document.getElementById('mainSaveBtn');
   if (btn.disabled) return;

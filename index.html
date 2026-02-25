@@ -63,7 +63,7 @@
 /* リストのヘッダー（選択・期限など） */
 .list-table thead th {
   position: sticky;
-  top: 145px; /* 上記すべての要素の下に来るように調整 */
+  top: 120px; /* 上記すべての要素の下に来るように調整 */
   background-color: #eee;
   z-index: 90;
   border-bottom: 2px solid #ccc;
@@ -345,17 +345,20 @@ button:disabled {
   <div class="nav-item" onclick="showPage('pageAll')">🌍<span>全店舗リスト</span></div>
 </div>
             
-<div id="qtyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:3000; align-items:center; justify-content:center;">
-  <div style="background:white; width:85%; border-radius:12px; padding:20px; box-sizing:border-box;">
-    <div id="modalProductInfo" style="font-size:0.85em; color:#666; margin-bottom:10px; white-space:pre-wrap;"></div>
-    <div style="font-weight:bold; margin-bottom:15px; font-size:1.1em;">修正数量を入力</div>
+<div id="qtyModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:3000; align-items:center; justify-content:center;">
+  <div style="background:white; width:90%; max-width:400px; border-radius:16px; padding:24px; box-sizing:border-box; box-shadow:0 20px 40px rgba(0,0,0,0.4);">
+    
+    <div id="modalProductInfo" style="font-size:1.1em; font-weight:bold; color:#333; margin-bottom:4px; white-space:pre-wrap; line-height:1.4; text-align:center;"></div>
+    <div id="modalJanInfo" style="font-size:0.85em; color:#888; text-align:center; margin-bottom:20px; letter-spacing:1px;"></div>
+    
+    <div style="text-align:center; font-size:0.9em; color:#555; margin-bottom:8px;">変更後の数量</div>
     
     <input type="number" id="modalQtyInput" inputmode="numeric" pattern="[0-9]*" 
-           style="width:100%; height:55px; font-size:1.8em; text-align:center; border:2px solid #3498db; border-radius:8px; margin-bottom:20px;">
+           style="width:100%; height:60px; font-size:2em; text-align:center; border:2px solid #3498db; border-radius:12px; margin-bottom:24px; background:#f8fbfe; font-weight:bold; color:#333; outline:none; -webkit-appearance:none;">
     
-    <div style="display:flex; gap:10px;">
-      <button onclick="closeQtyModal()" style="flex:1; height:50px; border-radius:8px; border:1px solid #ccc; background:#eee; font-weight:bold;">× 戻る</button>
-      <button id="modalConfirmBtn" style="flex:1; height:50px; border-radius:8px; border:none; background:#27ae60; color:white; font-weight:bold; font-size:1.1em;">更新</button>
+    <div style="display:flex; gap:12px;">
+      <button onclick="closeQtyModal()" style="flex:1; height:55px; border-radius:10px; border:1px solid #ddd; background:#f1f1f1; color:#666; font-weight:bold; font-size:1em; cursor:pointer;">キャンセル</button>
+      <button id="modalConfirmBtn" style="flex:1; height:55px; border-radius:10px; border:none; background:#27ae60; color:white; font-weight:bold; font-size:1.1em; box-shadow:0 4px 0 #219150; cursor:pointer;">更新する</button>
     </div>
   </div>
 </div>
@@ -1071,28 +1074,26 @@ async function editQty(recordId, oldQty) {
   const jan = parentRow.querySelector('.jan-text').innerText;
   const itemName = parentRow.querySelector('b').innerText;
 
-  // 1. 自作モーダルに情報をセット
-  document.getElementById('modalProductInfo').innerText = `${jan}\n${itemName}`;
+  // 要素に流し込む
+  document.getElementById('modalProductInfo').innerText = itemName;
+  document.getElementById('modalJanInfo').innerText = jan;
+  
   const input = document.getElementById('modalQtyInput');
   input.value = oldQty;
   
-  // 2. モーダルを表示
   document.getElementById('qtyModal').style.display = 'flex';
   
-  // 3. 確定ボタンを押した時の処理を定義
+  // 入力窓を自動フォーカス & 全選択（すぐに打ち替えられるように）
+  setTimeout(() => {
+    input.focus();
+    input.setSelectionRange(0, 9999); // 全選択
+  }, 200);
+
   document.getElementById('modalConfirmBtn').onclick = async () => {
     const newQty = input.value;
-    
-    // キャンセル条件
-    if (!newQty || newQty == oldQty) {
-      closeQtyModal();
-      return;
-    }
+    if (!newQty || newQty == oldQty) { closeQtyModal(); return; }
     const num = parseInt(newQty);
-    if (isNaN(num) || num <= 0) {
-      alert("1以上の数字を入力してください");
-      return;
-    }
+    if (isNaN(num) || num <= 0) { alert("1以上の数字を入力してください"); return; }
 
     closeQtyModal();
 

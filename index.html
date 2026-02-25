@@ -148,6 +148,19 @@ button:disabled {
   cursor: not-allowed !important;
   position: relative;
 }
+/* 更新中（無効化）のボタンの見た目 */
+.btn-bulk:disabled, .btn-list-init:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  position: relative;
+}
+
+/* 任意：ボタンの中に「削除中...」と出すなら */
+.btn-bulk:disabled::after {
+  content: "...処理中";
+  font-size: 0.8em;
+  margin-left: 5px;
+}  
   
   /* ボタン・セレクト共通（高さ・幅の統一） */
   #periodSelect { width: 100%; height: 65px; font-size: 1.2em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; margin-bottom: 10px; }
@@ -742,15 +755,36 @@ function getRowHtmlByMode(mode, item, pageId) {
 }
 
 async function bulkDelete(pageId) {
+  const btn = document.getElementById(`btnComplete_${pageId}`);
   const mode = document.getElementById('mainModeSelect').value;
   const checks = document.querySelectorAll(`#view_${pageId} .bulk-check:checked`);
+  
   if(checks.length === 0) return alert("商品を選択してください");
   if(!confirm(checks.length + "件の処理を完了しますか？")) return;
-  
-  // モードによってGASの関数を切り替え
-  const action = (mode === 'scan') ? "deleteRowsBulk" : "deletePriceRowsBulk";
-  const res = await callGAS(action, { ids: Array.from(checks).map(c => c.getAttribute('data-id')) });
-  if (res) { alert("完了しました"); refreshPage(pageId); }
+
+  // 1. ボタンを無効化 & テキスト保存
+  const originalText = btn.innerText;
+  btn.disabled = true;
+  btn.innerText = "削除中...";
+
+  try {
+    // モードによってGASの関数を切り替え
+    const action = (mode === 'scan') ? "deleteRowsBulk" : "deletePriceRowsBulk";
+    const ids = Array.from(checks).map(c => c.getAttribute('data-id'));
+    
+    const res = await callGAS(action, { ids: ids });
+
+    if (res) {
+      alert("完了しました");
+      refreshPage(pageId);
+    }
+  } catch (e) {
+    alert("エラーが発生しました: " + e);
+  } finally {
+    // 2. 【重要】成功・失敗に関わらずボタンを復活させる
+    btn.disabled = false;
+    btn.innerText = originalText;
+  }
 }
 
 function resetUI(shouldStopCamera = false) {

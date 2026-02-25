@@ -564,8 +564,8 @@ function renderList(pageId, list) {
   if(stockBtn) {
     stockBtn.style.display = (pageId === 'pageAll' && mode === 'scan') ? 'block' : 'none';
   }
-
-  let html = `<table class="list-table">${getTableHeaderByMode(mode)}`;
+　let html = `<table class="list-table">${getTableHeaderByMode(mode, pageId)}`;
+  
   list.forEach(item => {
     html += getRowHtmlByMode(mode, item, pageId);
   });
@@ -598,13 +598,22 @@ function sortListByMode(pageId, list, mode) {
   
 
 /**
- * モード別のテーブルヘッダー
+ * モード別のテーブルヘッダー（一括チェックボックス付き）
  */
-// 補助関数：ヘッダー
-function getTableHeaderByMode(mode) {
+function getTableHeaderByMode(mode, pageId) {
+  // 「選択」の文字の下に、全選択用のチェックボックスを配置
+  const selectHeader = `
+    <th style="text-align:center; width:50px;">
+      選択<br>
+      <input type="checkbox" id="selectAll_${pageId}" 
+             onclick="toggleAllChecks(this, '${pageId}')" 
+             style="width:20px; height:20px; margin-top:4px; cursor:pointer;">
+    </th>`;
+
+  // scanモード（期限登録）と searchモード（商品検索）でヘッダーを出し分け
   return (mode === 'scan') 
-    ? `<tr><th>選択</th><th>期限</th><th>商品情報</th><th>数</th></tr>`
-    : `<tr><th>選択</th><th>EC在庫</th><th>商品情報</th><th>EC価格</th></tr>`;
+    ? `<thead><tr>${selectHeader}<th>期限/店舗</th><th>商品情報</th><th>数</th></tr></thead>`
+    : `<thead><tr>${selectHeader}<th>店/在庫</th><th>商品情報</th><th>EC価格</th></tr></thead>`;
 }
 
 /**
@@ -639,15 +648,14 @@ if (mode === 'scan') {
           <b>${item.itemName || item.name || "名称不明"}</b>
           ${stockDisplay}
         </td>
-        <td class="qty-cell" style="text-align:center;">
-          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-            <b id="qty-val-${item.recordId}" style="font-size: 1.1em; color: #007bff;">${item.qty}</b>
-            <button onclick="editQty('${item.recordId}', ${item.qty})" 
-                    style="padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 4px; border: 1px solid #ddd; background: #f8f9fa; color: #666;">
-              修正
-            </button>
-          </div>
-        </td>
+ <td class="qty-cell" style="text-align:center; vertical-align:middle;">
+  <div onclick="editQty('${item.recordId}', ${item.qty})" 
+       style="display:inline-block; width:45px; height:35px; line-height:35px; 
+              border: 1px solid #3498db; border-radius: 4px; background: #fff; 
+              color: #007bff; font-weight: bold; font-size: 1.1em; cursor: pointer;">
+    <span id="qty-val-${item.recordId}">${item.qty}</span>
+  </div>
+</td>
       </tr>`;
 
   } else if (mode === 'search') {
@@ -963,23 +971,37 @@ async function fetchSelectedStocks() {
   }
 }
 
-  async function editQty(recordId, oldQty) {
+async function editQty(recordId, oldQty) {
+  // 1. 入力ウィンドウを表示
   const newQty = prompt("新しい数量を入力してください", oldQty);
   
+  // キャンセルや未入力、変更なしなら終了
   if (newQty === null || newQty === "" || newQty == oldQty) return;
+  
   const num = parseInt(newQty);
-  if (isNaN(num) || num <= 0) return alert("1以上の数字を入力してください");
+  if (isNaN(num) || num <= 0) {
+    alert("1以上の数字を入力してください");
+    return;
+  }
 
   try {
-    const res = await callGAS("updateStockQty", { recordId, newQty: num });
+    // 2. GASの更新関数を呼び出す
+    const res = await callGAS("updateStockQty", { recordId: recordId, newQty: num });
+    
     if (res === "完了") {
-      // 画面上の数字を即座に更新
-      document.getElementById(`qty-val-${recordId}`).innerText = num;
+      // 3. 画面上の表示を書き換え
+      const displayElem = document.getElementById(`qty-val-${recordId}`);
+      if (displayElem) {
+        displayElem.innerText = num;
+        // 成功したことがわかるように、一瞬色を変える（任意）
+        displayElem.parentElement.style.backgroundColor = "#e8f5e9";
+        setTimeout(() => { displayElem.parentElement.style.backgroundColor = "#fff"; }, 500);
+      }
     } else {
-      alert(res);
+      alert("エラー: " + res);
     }
   } catch (e) {
-    alert("更新に失敗しました");
+    alert("通信エラーが発生しました");
   }
 }
   

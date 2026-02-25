@@ -954,6 +954,26 @@ async function fetchSelectedStocks() {
     }
   }
 }
+
+  async function editQty(recordId, oldQty) {
+  const newQty = prompt("新しい数量を入力してください", oldQty);
+  
+  if (newQty === null || newQty === "" || newQty == oldQty) return;
+  const num = parseInt(newQty);
+  if (isNaN(num) || num <= 0) return alert("1以上の数字を入力してください");
+
+  try {
+    const res = await callGAS("updateStockQty", { recordId, newQty: num });
+    if (res === "完了") {
+      // 画面上の数字を即座に更新
+      document.getElementById(`qty-val-${recordId}`).innerText = num;
+    } else {
+      alert(res);
+    }
+  } catch (e) {
+    alert("更新に失敗しました");
+  }
+}
   
 window.onscroll = handleScroll;
 </script>

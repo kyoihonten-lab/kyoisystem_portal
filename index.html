@@ -18,51 +18,42 @@
   .active { display: block; }
 
   /* ヘッダー・店コードエリア */
-  .header, .shop-area, div[style*="background: #fff; padding: 10px;"] {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background-color: white; /* 背景が透けないように */
-}
-  /* ヘッダー全体を固定 */
-/* 1段目: メインヘッダー (45px) */
+/* --- 1段目: 青いタイトル (45px) --- */
 .header { 
   background: #3498db; color: white; height: 45px; line-height: 45px;
   padding: 0; font-weight: bold; font-size: 1.2em; text-align: center;
-  position: sticky; top: 0; z-index: 110; margin: 0;
+  position: sticky; top: 0; z-index: 200; margin: 0;
 }
-
-/* 2段目: 店コードエリア (55px) */
+  
+/* --- 2段目: 店コードエリア (55px) --- */
 .shop-area { 
   background: #fff; height: 55px; padding: 0 10px; border-bottom: 2px solid #ddd;
   display: flex; align-items: center; position: sticky; 
-  top: 45px; /* headerの高さ */
-  z-index: 109; margin: 0; box-sizing: border-box;
+  top: 45px; /* ここが重要：1段目の高さ分を空ける */
+  z-index: 195; margin: 0; box-sizing: border-box;
 }
 
-/* 3段目: モード選択エリア (65px) */
-/* unifiedPage直下、および各ページ内の最初のdiv（ボタン類を包むdiv）を対象 */
+/* --- 3段目: モード選択エリア --- */
 #unifiedPage > div:first-child,
 #pageList > div:first-child,
 #pageSummary > div:first-child,
 #pageAll > div:first-child {
   position: sticky; 
   top: 100px; /* 45 + 55 */
-  z-index: 108; background: white; margin: 0 !important;
+  z-index: 190; background: white; margin: 0 !important;
   padding: 10px !important; border-bottom: 1px solid #ddd;
   box-sizing: border-box;
 }
 
-/* 4段目: リストの項目名ヘッダー (約35px) */
+/* --- 4段目: リストのヘッダー --- */
 .list-table thead th {
   position: sticky; 
-  top: 165px; /* 100 + モードエリアの高さ(約65) */
-  background-color: #eee; z-index: 107;
+  top: 165px; /* ここまでの合計 */
+  background-color: #eee; z-index: 180;
   border-bottom: 2px solid #ccc; padding: 8px 4px; margin: 0;
 }
 
-  div[style*="background: #fff; padding: 10px;"] { top: 85px; } /* shop-areaまで */
-  
+ 
   #shopInput { width: 80px; height: 35px; font-size: 1.0em; text-align: center; border: 2px solid #3498db; background: #fff; border-radius: 4px; font-weight: bold; }
   #shopDisplay { font-weight: bold; margin-left: 10px; font-size: 0.9em; flex: 1; color: #2c3e50; }
   .btn-change { margin-left: auto; padding: 8px 12px; background: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 1.2em; }
@@ -210,7 +201,7 @@ button:disabled {
   <span id="shopDisplay" style="margin-left:8px; font-weight:bold; color: #2c3e50;">店コードを入力</span>
   
   <button id="shopSubmitBtn" class="btn-change" onclick="reEnterShopCode()" 
-          style="margin-left:auto; padding:5px 10px; background:#3498db; color:white; border:none; border-radius:4px;">
+          style="margin-left:auto; padding:5px 10px; background:#3498db; color:white; border:none; border-radius:4px; height: 35px;">
     再入力
   </button>
 </div>

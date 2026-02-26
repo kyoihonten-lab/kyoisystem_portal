@@ -34,20 +34,29 @@
 }
 
 /* --- 3段目: モード選択エリア --- */
-/* stickyを維持しつつ、カメラとの重なりを制御 */
-#unifiedPage > div:first-child,
+/* ↓ ここから #unifiedPage > div:first-child, を削除しました */
 #pageList > div:first-child,
 #pageSummary > div:first-child,
 #pageAll > div:first-child {
   position: sticky; 
   top: 100px; 
-  z-index: 190; /* ヘッダー(200)より下、カメラ(1)より上 */
+  z-index: 190;
   background: white; 
   margin: 0 !important;
   padding: 10px !important; 
   border-bottom: 1px solid #ddd;
   box-sizing: border-box;
 }
+
+/* スキャンページのモード選択だけを別途固定する設定を追加 */
+#unifiedModeArea {
+  position: sticky;
+  top: 100px;
+  z-index: 190;
+  background: white;
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+}  
 
 /* --- 4段目: リストのヘッダー --- */
 /* ここは3段目の高さ（約70pxと仮定）を足した位置に固定します */
@@ -217,7 +226,15 @@ button:disabled {
   </button>
 </div>
 
-<div style="background: #fff; padding: 10px; border-bottom: 1px solid #ddd;">
+ <div id="unifiedPage" class="page active">
+  <div id="interactive" class="viewport">
+    <video id="video" autoplay muted playsinline="true" webkit-playsinline="true"></video>
+    <div class="scan-overlay"></div>
+    <div class="scan-line"></div>
+  </div>           
+
+<div id="unifiedModeArea">            
+<style="background: #fff; padding: 10px; border-bottom: 1px solid #ddd;">
   <select id="mainModeSelect" onchange="handleModeChange()" style="width: 100%; height: 50px; font-size: 1.1em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; background-color: #ebf5fb;">
     <option value="scan">📷 期限登録モード</option>
     <option value="search">🔍 商品検索モード</option>

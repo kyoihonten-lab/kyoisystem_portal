@@ -225,13 +225,7 @@ button:disabled {
     再入力
   </button>
 </div>
-
- <div id="unifiedPage" class="page active">
-  <div id="interactive" class="viewport">
-    <video id="video" autoplay muted playsinline="true" webkit-playsinline="true"></video>
-    <div class="scan-overlay"></div>
-    <div class="scan-line"></div>
-  </div>           
+    
 
 <div id="unifiedModeArea">            
 <style="background: #fff; padding: 10px; border-bottom: 1px solid #ddd;">
@@ -451,10 +445,11 @@ function stopAllCameras() {
     const stream = videoEl.srcObject;
     const tracks = stream.getTracks();
     tracks.forEach(track => {
-      track.stop();
-      track.enabled = false;
+      track.stop(); // 完全に止める
     });
     videoEl.srcObject = null;
+    videoEl.pause(); // 映像を止める
+    videoEl.removeAttribute('src'); // ソースを消す
     videoEl.load();
   }
 
@@ -464,7 +459,7 @@ function stopAllCameras() {
     btn.className = "btn-main btn-start";
   }
 }
-
+  
 async function processShopCode() {
   const input = document.getElementById('shopInput');
   const display = document.getElementById('shopDisplay');

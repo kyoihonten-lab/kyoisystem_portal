@@ -498,36 +498,28 @@ function reEnterShopCode() {
 
 async function processUnifiedFlow(code, mode) {
   if (!code || isFetching) return;
-  stopAllCameras();
+  stopAllCameras(); // カメラを止める
   currentCode = code;
   isFetching = true;
+  
   const isScanMode = (mode === 'scan');
   document.getElementById('scanActionArea').style.display = 'none';
 
-  // 1. ターゲットを表示
+  // 1. 表示するターゲットを決定（検索なら searchDetailArea）
   const targetId = isScanMode ? 'editArea' : 'searchDetailArea';
   const targetEl = document.getElementById(targetId);
   targetEl.style.display = 'block';
 
-  // ★ 追加：カメラを追い越してスクロールさせる処理
+  // 2. ★ 検索モードでもスキャン直後にシュッと移動させる
   setTimeout(() => {
     const headerHeight = 100; // 1段目(45) + 2段目(55)
-    // モード選択エリア(約70px)も考慮して少し余裕を持たせるなら170
+    // 3段目のモード選択エリア(約70px)も追い越すなら、もう少し多めに引く（170程度）
     const scrollOffset = targetEl.offsetTop - 160; 
     
     window.scrollTo({
       top: scrollOffset,
-      behavior: 'smooth'
+      behavior: 'smooth' // これが「シュッ」の正体
     });
-
-    // 期限登録モードなら数量入力にフォーカス
-    if (isScanMode) {
-      const qtyInput = document.getElementById('qty');
-      if (qtyInput) {
-        qtyInput.focus();
-        qtyInput.click(); // モバイルでのキーボード強制起動用
-      }
-    }
   }, 100);
 
   // --- 以降、GASへの問い合わせ処理 ---

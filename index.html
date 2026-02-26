@@ -189,7 +189,19 @@ button:disabled {
   font-size: 0.85em; 
   background: white; 
 }
-
+/* リスト共通のカッコいいヘッダー設定 */
+/* カッコいいヘッダーの共通設定 */
+.cool-header th {
+  background: #34495e;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 10px 5px;
+  font-size: 0.85em;
+  border: none;
+  white-space: nowrap; /* 改行を防ぐ */
+}
   .danger td { color: #e74c3c !important; font-weight: bold !important; }
   .shop-info { font-size: 0.9em; color: #2c3e50; font-weight: bold; margin-bottom: 4px; line-height: 1.2; }
   .stock-badge { display: inline-block; background: #ebf5fb; color: #2980b9; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #d6eaf8; margin-top: 4px; font-size: 0.8em; }
@@ -769,19 +781,37 @@ function sortListByMode(pageId, list, mode) {
  * モード別のテーブルヘッダー（一括チェックボックス付き）
  */
 function getTableHeaderByMode(mode, pageId) {
-  // 「選択」の文字の下に、全選択用のチェックボックスを配置
+  // 全選択チェックボックス部分
   const selectHeader = `
-    <th style="text-align:center; width:50px;">
-      一括選択<br>
+    <th style="text-align:center; width:55px;">
+      選択<br>
       <input type="checkbox" id="selectAll_${pageId}" 
              onclick="toggleAllChecks(this, '${pageId}')" 
              style="width:20px; height:20px; margin-top:4px; cursor:pointer;">
     </th>`;
 
-  // scanモード（期限登録）と searchモード（商品検索）でヘッダーを出し分け
-  return (mode === 'scan') 
-    ? `<thead><tr>${selectHeader}<th>期限/店舗</th><th>商品情報</th><th>数</th></tr></thead>`
-    : `<thead><tr>${selectHeader}<th>店/在庫</th><th>商品情報</th><th>EC価格</th></tr></thead>`;
+  // クラス「cool-header」を付与して、見た目はCSSにお任せ
+  if (mode === 'scan') {
+    return `
+      <thead class="cool-header">
+        <tr>
+          ${selectHeader}
+          <th style="text-align:left;">期限</th>
+          <th style="text-align:left;">商品情報</th>
+          <th style="text-align:right; width:50px;">数</th>
+        </tr>
+      </thead>`;
+  } else {
+    return `
+      <thead class="cool-header">
+        <tr>
+          ${selectHeader}
+          <th style="text-align:left;">EC在庫状況</th>
+          <th style="text-align:left;">商品情報</th>
+          <th style="text-align:right; width:70px;">EC参考価格</th>
+        </tr>
+      </thead>`;
+  }
 }
 
 /**

@@ -34,15 +34,18 @@
 }
 
 /* --- 3段目: モード選択エリア --- */
-/* ここを「店コードエリア」の高さ分(45+55=100px)下げて固定します */
+/* stickyを維持しつつ、カメラとの重なりを制御 */
 #unifiedPage > div:first-child,
 #pageList > div:first-child,
 #pageSummary > div:first-child,
 #pageAll > div:first-child {
   position: sticky; 
-  top: 100px; /* 1段目(45) + 2段目(55) */
-  z-index: 190; background: white; margin: 0 !important;
-  padding: 10px !important; border-bottom: 1px solid #ddd;
+  top: 100px; 
+  z-index: 190; /* ヘッダー(200)より下、カメラ(1)より上 */
+  background: white; 
+  margin: 0 !important;
+  padding: 10px !important; 
+  border-bottom: 1px solid #ddd;
   box-sizing: border-box;
 }
 
@@ -60,20 +63,18 @@
   #shopDisplay { font-weight: bold; margin-left: 10px; font-size: 0.9em; flex: 1; color: #2c3e50; }
   .btn-change { margin-left: auto; padding: 8px 12px; background: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 1.2em; }
 
-  /* --- 【重要】ビデオエリア：ゾンビを排除し1つに統合 --- */
-  #interactive.viewport { 
-    width: 100%; 
-    height: 200px; /* 少し高さを確保 */
-    background: #000 !important; 
-    position: relative; 
-    overflow: hidden; 
-    margin: 0; 
-    display: block;
-    /* z-indexをヘッダー(195〜200)より低く設定して、下をくぐるようにする */
-  　z-index: 1;
-    /* iPhoneの描画バグを防ぐおまじない */
-    transform: translateZ(0);
-  }
+/* --- ビデオエリア：スクロールで逃げる設定 --- */
+#interactive.viewport { 
+  width: 100%; 
+  height: 200px; 
+  background: #000 !important; 
+  position: relative; /* stickyではなく通常配置にする */
+  overflow: hidden; 
+  margin: 0; 
+  display: block;
+  z-index: 1; /* 重なり順を一番下にする */
+  transform: translateZ(0);
+}
 
   /* ビデオ要素：IDを1つに絞り、余計なものを一切排除 */
   #video { 
@@ -108,13 +109,18 @@
   }
 
   /* スキャン窓の上にある装飾要素が、クリックやカメラ起動を邪魔しないようにする */
+/* ガイド線（映像の上に乗せたいもの） */
 .scan-overlay, .scan-line {
-  pointer-events: none; /* これで「透明な壁」を物理的に透過させます */
+  z-index: 5; /* 映像(1)より大きい数字にして、上に重ねる */
+  pointer-events: none; /* 重ねても操作は邪魔しない */
 }
+  
+/* 映像そのもの */
 #video {
-  z-index: 1; /* ビデオを確実に認識させる */
+  position: absolute;
+  top: 0; left: 0;
+  z-index: 1; /* ベースと同じか、少し低め */
 }
-
   /* フォーム・入力パーツ */
   .form-group { background: white; padding: 15px; border-top: 1px solid #ddd; box-sizing: border-box; }
   .input-row { display: flex; align-items: center; margin-bottom: 12px; }
@@ -157,8 +163,7 @@ button:disabled {
   position: relative;
 }
 
-  
-  /* ボタン・セレクト共通（高さ・幅の統一） */
+   /* ボタン・セレクト共通（高さ・幅の統一） */
   #periodSelect { width: 100%; height: 65px; font-size: 1.2em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; margin-bottom: 10px; }
   .btn-main { width: 100%; height: 75px; font-size: 1.4em; border-radius: 12px; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
   .btn-start { background: #3498db; box-shadow: 0 5px 0 #2980b9; }
@@ -188,6 +193,8 @@ button:disabled {
   /* 共通パーツ */
   #backToTop { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: rgba(52, 152, 219, 0.8); color: white; border-radius: 50%; border: none; font-size: 1.5em; display: none; z-index: 2000; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 </style>
+
+  
 <script src="https://unpkg.com/@zxing/library@latest"></script
 </head>
 
@@ -497,22 +504,29 @@ async function processUnifiedFlow(code, mode) {
   const isScanMode = (mode === 'scan');
   document.getElementById('scanActionArea').style.display = 'none';
 
-// 1. 表示するターゲットを決定
-  // 期限登録なら 'editArea'、商品検索なら 'searchDetailArea'
-  let targetId = isScanMode ? 'editArea' : 'searchDetailArea';
+  // 1. ターゲットを表示
+  const targetId = isScanMode ? 'editArea' : 'searchDetailArea';
   const targetEl = document.getElementById(targetId);
   targetEl.style.display = 'block';
 
-  // 2. 自動スクロール（カメラを追い越してヘッダーの真下へ）
-  const headerHeight = 100; // 1段目(45) + 2段目(55)
+  // ★ 追加：カメラを追い越してスクロールさせる処理
   setTimeout(() => {
-    const offset = targetEl.offsetTop - headerHeight;
-    window.scrollTo({ top: offset, behavior: 'smooth' });
+    const headerHeight = 100; // 1段目(45) + 2段目(55)
+    // モード選択エリア(約70px)も考慮して少し余裕を持たせるなら170
+    const scrollOffset = targetEl.offsetTop - 160; 
     
-    // スキャンモードの時だけ「数量」にフォーカス
+    window.scrollTo({
+      top: scrollOffset,
+      behavior: 'smooth'
+    });
+
+    // 期限登録モードなら数量入力にフォーカス
     if (isScanMode) {
       const qtyInput = document.getElementById('qty');
-      if (qtyInput) qtyInput.focus();
+      if (qtyInput) {
+        qtyInput.focus();
+        qtyInput.click(); // モバイルでのキーボード強制起動用
+      }
     }
   }, 100);
 

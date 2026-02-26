@@ -8,253 +8,73 @@
 <style>
   /* --- 基本設定 --- */
   body { font-family: sans-serif; margin: 0; padding: 0 0 80px 0; background-color: #f4f7f6; -webkit-tap-highlight-color: transparent; }
-  
-  .page { 
-    display: none; 
-    padding: 0; 
-    width: 100%;
-    box-sizing: border-box;
-  }
+  .page { display: none; padding: 0; width: 100%; box-sizing: border-box; }
   .active { display: block; }
 
-/* --- 1段目: メインヘッダー (45px) --- */
-.header { 
-  background: #3498db; color: white; height: 45px; line-height: 45px;
-  padding: 0; font-weight: bold; font-size: 1.2em; text-align: center;
-  position: sticky; top: 0; z-index: 200; margin: 0;
-}
-
-/* --- 2段目: 店コードエリア (55px) --- */
-.shop-area { 
-  background: #fff; height: 55px; padding: 0 10px; border-bottom: 2px solid #ddd;
-  display: flex; align-items: center; 
-  position: sticky; top: 45px; /* 1段目の真下に固定 */
-  z-index: 195; margin: 0; box-sizing: border-box;
-}
-
-/* --- 3段目: モード選択エリア --- */
-/* ↓ ここから #unifiedPage > div:first-child, を削除しました */
-#pageList > div:first-child,
-#pageSummary > div:first-child,
-#pageAll > div:first-child {
-  position: sticky; 
-  top: 100px; 
-  z-index: 190;
-  background: white; 
-  margin: 0 !important;
-  padding: 10px !important; 
-  border-bottom: 1px solid #ddd;
-  box-sizing: border-box;
-}
-
-
-/* スキャンページのモード選択だけを別途固定する設定を追加 */
-#unifiedModeArea {
-  position: sticky;
-  top: 100px;
-  z-index: 190;
-  background: white;
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-}  
-
-/* --- 4段目: リスト自体のヘッダー --- */
-/* リストはスクロールdiv内にあるため、その枠内での top:0 指定 */
-.list-table thead th {
-  position: sticky;
-  top: 0; 
-  z-index: 10; 
-  background: #34495e;
-  color: white;
-  padding: 10px 4px;
-  font-size: 0.85em; /* 統一感のためのサイズ */
-  border-bottom: 2px solid #ccc;
-}
- 
-  #shopInput { width: 80px; height: 35px; font-size: 1.0em; text-align: center; border: 2px solid #3498db; background: #fff; border-radius: 4px; font-weight: bold; }
-  #shopDisplay { font-weight: bold; margin-left: 10px; font-size: 0.9em; flex: 1; color: #2c3e50; }
-  .btn-change { margin-left: auto; padding: 8px 12px; background: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 1.2em; }
-
-  /* ついでに：全店在庫リスト等のスクロールエリアを滑らかにする */
-#view_pageList, #view_pageSummary, #view_pageAll {
-  -webkit-overflow-scrolling: touch;
-}
-/* --- ビデオエリア：スクロールで逃げる設定 --- */
-#interactive.viewport { 
-  width: 100%; 
-  height: 200px; 
-  background: #000 !important; 
-  position: relative; /* stickyではなく通常配置にする */
-  overflow: hidden; 
-  margin: 0; 
-  display: block;
-  z-index: 1; /* 重なり順を一番下にする */
-  transform: translateZ(0);
-}
-
-  /* ビデオ要素：IDを1つに絞り、余計なものを一切排除 */
-  #video { 
-    width: 100%; 
-    height: 100%; 
-    object-fit: cover; 
-    display: block; 
-  }
-
-  /* オーバーレイ：pointer-events: none で「壁」にならないようにする */
-  .scan-overlay { 
-    position: absolute; 
-    top: 50%; left: 50%; 
-    transform: translate(-50%, -50%); 
-    width: 70%; height: 40%; 
-    border: 2px solid rgba(52, 152, 219, 0.7); 
-    border-radius: 8px; 
-    box-shadow: 0 0 0 400px rgba(0, 0, 0, 0.3); 
-    z-index: 2; 
-    pointer-events: none !important; /* 絶対に触らせない */
-  }
+  /* --- 固定ヘッダー階層 (z-index管理) --- */
+  .header { background: #3498db; color: white; height: 45px; line-height: 45px; text-align: center; font-weight: bold; font-size: 1.2em; position: sticky; top: 0; z-index: 200; margin: 0; }
+  .shop-area { background: #fff; height: 55px; padding: 0 10px; border-bottom: 2px solid #ddd; display: flex; align-items: center; position: sticky; top: 45px; z-index: 195; margin: 0; box-sizing: border-box; }
   
-  .scan-line { 
-    position: absolute; 
-    top: 50%; left: 50%; 
-    transform: translate(-50%, -50%); 
-    width: 80%; height: 2px; 
-    background-color: rgba(231, 76, 60, 0.8); 
-    box-shadow: 0 0 8px rgba(231, 76, 60, 0.5); 
-    z-index: 3; 
-    pointer-events: none !important;
+  #pageList > div:first-child, #pageSummary > div:first-child, #pageAll > div:first-child, #unifiedModeArea {
+    position: sticky; top: 100px; z-index: 190; background: white; margin: 0 !important; padding: 10px !important; border-bottom: 1px solid #ddd; box-sizing: border-box;
   }
 
-  /* スキャン窓の上にある装飾要素が、クリックやカメラ起動を邪魔しないようにする */
-/* ガイド線（映像の上に乗せたいもの） */
-.scan-overlay, .scan-line {
-  z-index: 5; /* 映像(1)より大きい数字にして、上に重ねる */
-  pointer-events: none; /* 重ねても操作は邪魔しない */
-}
+  /* --- リスト表示エリア --- */
+  #view_pageList, #view_pageSummary, #view_pageAll { -webkit-overflow-scrolling: touch; }
+
+  /* --- リストテーブル設定 (黄金比・切れ防止) --- */
+  .list-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; background: white; }
   
-/* 映像そのもの */
-#video {
-  position: absolute;
-  top: 0; left: 0;
-  z-index: 1; /* ベースと同じか、少し低め */
-}
-  /* フォーム・入力パーツ */
+  .list-table thead th {
+    position: sticky; top: 0; z-index: 10; background: #34495e; color: white;
+    padding: 10px 4px; font-size: 0.85em; border-bottom: 2px solid #ccc; white-space: nowrap;
+  }
+
+  .list-table td { 
+    padding: 10px 4px; vertical-align: middle; border-bottom: 1px solid #eee; 
+    font-size: 0.85em; overflow: hidden; word-break: break-all;
+  }
+
+  /* ★右端の「数・価格」列の切れ防止 */
+  .list-table td:last-child {
+    padding-right: 12px !important; font-size: 1.0em; font-weight: bold; color: #2980b9; text-align: right;
+  }
+
+  /* 商品情報のフォント出し分け */
+  .jan-sub { font-size: 0.75em; color: #7f8c8d; display: block; margin-bottom: 2px; }
+  .name-main { font-size: 0.95em; font-weight: bold; color: #2c3e50; line-height: 1.2; display: block; }
+
+  /* --- ビデオ・スキャン設定 --- */
+  #interactive.viewport { width: 100%; height: 200px; background: #000 !important; position: relative; overflow: hidden; margin: 0; display: block; z-index: 1; transform: translateZ(0); }
+  #video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+  .scan-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 40%; border: 2px solid rgba(52, 152, 219, 0.7); border-radius: 8px; box-shadow: 0 0 0 400px rgba(0, 0, 0, 0.3); z-index: 5; pointer-events: none; }
+  .scan-line { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 2px; background-color: rgba(231, 76, 60, 0.8); box-shadow: 0 0 8px rgba(231, 76, 60, 0.5); z-index: 5; pointer-events: none; }
+
+  /* --- 入力・ボタン類 --- */
   .form-group { background: white; padding: 15px; border-top: 1px solid #ddd; box-sizing: border-box; }
   .input-row { display: flex; align-items: center; margin-bottom: 12px; }
   .input-row label { width: 60px; font-weight: bold; color: #34495e; }
-  .input-row input { flex: 1; padding: 10px; font-size: 1.1em; border: 1px solid #ccc; border-radius: 6px; }
+  .input-row input, #shopInput { padding: 10px; font-size: 1.1em; border: 1px solid #ccc; border-radius: 6px; }
+  #shopInput { width: 80px; height: 35px; border: 2px solid #3498db; text-align: center; }
   
-  /* セレクトボックス（ご要望の1ヶ月〜3ヶ月対応用） */
   #periodSelect { width: 100%; height: 65px; font-size: 1.2em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; margin-bottom: 10px; background-color: #fff; }
-
-  /* メインボタン（スキャン開始・停止） */
+  
   .btn-main { width: 100%; height: 75px; font-size: 1.4em; border-radius: 12px; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; -webkit-appearance: none; }
   .btn-start { background: #3498db; box-shadow: 0 5px 0 #2980b9; }
   .btn-stop { background: #e74c3c; box-shadow: 0 5px 0 #c0392b; }
   .btn-main:active { transform: translateY(3px); box-shadow: 0 2px 0 #2980b9; }
 
-  .manual-btn {
-    padding: 0 20px; background: #34495e; color: white; border: none; border-radius: 8px; 
-    font-weight: bold; font-size: 1.1em; white-space: nowrap; min-width: 80px; height: 45px;
-  }
-  
-  /* アクションボタン（登録・取消） */
-  .btn-action { flex: 1; height: 65px; font-size: 1.2em; font-weight: bold; border-radius: 8px; border: none; color: white; cursor: pointer; -webkit-appearance: none; }
-  .btn-reg { background: #27ae60; box-shadow: 0 4px 0 #219150; }
-  .btn-can { background: #e74c3c; box-shadow: 0 4px 0 #c0392b; }
-  /* 無効化されたボタンのスタイル */
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  }
-  /* 更新中（無効化）のボタンの見た目 */
-.btn-list-init:disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-  position: relative;
-}
-/* 更新中（無効化）のボタンの見た目 */
-.btn-bulk:disabled, .btn-list-init:disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
-  position: relative;
-}
-
-   /* ボタン・セレクト共通（高さ・幅の統一） */
-  #periodSelect { width: 100%; height: 65px; font-size: 1.2em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; margin-bottom: 10px; }
-  .btn-main { width: 100%; height: 75px; font-size: 1.4em; border-radius: 12px; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-  .btn-start { background: #3498db; box-shadow: 0 5px 0 #2980b9; }
-  .btn-stop { background: #e74c3c; box-shadow: 0 5px 0 #c0392b; }
-  
   .btn-list-init { background:#3498db; width:100%; height: 50px; font-size: 1.1em; color: white; border:none; border-radius: 6px; font-weight:bold; margin-bottom: 10px; cursor: pointer; }
   .btn-bulk { background: #2c3e50; width: 100%; height: 50px; font-size: 1.1em; color: white; border: none; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 0 #1a252f; display: none; margin-bottom: 15px; cursor: pointer; }
-  .btn-stock-large { background: #2980b9; height: 50px; font-size: 1.1em; color: white; border: none; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 0 #1c5982; display: none; cursor: pointer; }
+  
+  button:disabled { opacity: 0.5; cursor: not-allowed; position: relative; }
 
-.list-table { 
-  width: 100%; 
-  border-collapse: separate; /* collapseよりstickyと相性が良い */
-  border-spacing: 0;
-  font-size: 0.85em; 
-  background: white; 
-}
-/* リスト共通のカッコいいヘッダー設定 */
-/* カッコいいヘッダーの共通設定 */
-.cool-header th {
-background: #34495e !important; /* カッコいい濃紺 */
-  color: white !important;         /* 白文字 */
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: 8px 4px !important; /* 上下8px, 左右4pxに強制固定 */
-  line-height: 1.2;
-  vertical-align: middle;
-  font-size: 0.85em;
-  border: none;
-  white-space: nowrap;
-}
-  .danger td { color: #e74c3c !important; font-weight: bold !important; }
-  .shop-info { font-size: 0.9em; color: #2c3e50; font-weight: bold; margin-bottom: 4px; line-height: 1.2; }
-  .stock-badge { display: inline-block; background: #ebf5fb; color: #2980b9; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #d6eaf8; margin-top: 4px; font-size: 0.8em; }
-
-  /* ナビゲーション */
+  /* --- その他パーツ --- */
   .nav-bar { position: fixed; bottom: 0; width: 100%; height: 60px; background: #fff; display: flex; border-top: 1px solid #ddd; z-index: 1000; }
   .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75em; color: #7f8c8d; text-decoration: none; }
   .nav-item.active { color: #3498db; font-weight: bold; }
-
-  /* 全店在庫テーブルのヘッダー固定 */
-#stockAllDetailArea table {
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-#stockAllDetailArea thead th {
-  position: -webkit-sticky;
-  position: sticky;
-  top: 0; /* 画面上部に固定 */
-  z-index: 10;
-  background: #34495e; /* ヘッダー色 */
-  color: white;
-  box-shadow: 0 2px 2px rgba(0,0,0,0.1);
-}
   
-  /* 共通パーツ */
-  #backToTop { 
-  position: fixed; 
-  bottom: 80px; 
-  right: 20px; 
-  width: 50px; 
-  height: 50px; 
-  background: rgba(52, 152, 219, 0.9); /* 少し濃くして視認性アップ */
-  color: white; 
-  border-radius: 50%; 
-  border: none; 
-  font-size: 1.5em; 
-  display: none; /* 初期状態は非表示 */
-  z-index: 2500; /* ★ナビバー(1000)より上で、モーダル(3000)より下 */
-  align-items: center; 
-  justify-content: center; 
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
-  cursor: pointer;
-}
+  #backToTop { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: rgba(52, 152, 219, 0.9); color: white; border-radius: 50%; border: none; font-size: 1.5em; display: none; z-index: 2500; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer; }
 </style>
   
 <script src="https://unpkg.com/@zxing/library@latest"></script>

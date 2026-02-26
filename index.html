@@ -534,13 +534,13 @@ async function processUnifiedFlow(code, mode) {
   currentCode = code;
   isFetching = true;
 
-  // 全エリアを一旦隠す（全店在庫エリアも追加）
+  // --- お掃除処理（全店在庫エリアも追加） ---
   ['editArea', 'searchDetailArea', 'stockAllDetailArea', 'scanActionArea'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
 
-  // 1. 表示するターゲットを決定（3分岐に拡張）
+  // 1. 表示ターゲットの決定
   let targetId = 'editArea';
   if (mode === 'search') targetId = 'searchDetailArea';
   if (mode === 'stockAll') targetId = 'stockAllDetailArea';
@@ -554,9 +554,7 @@ async function processUnifiedFlow(code, mode) {
     window.scrollTo({ top: scrollOffset, behavior: 'smooth' });
   }, 100);
 
-  // --- 以降、GASへの問い合わせ準備 ---
-
-  // 問い合わせ前の一時表示
+  // --- GASへの問い合わせ前の一時表示 ---
   if (mode === 'scan') {
     document.getElementById('expiry').value = new Date().toISOString().split('T')[0];
     document.getElementById('itemNameDisplay').innerText = "照会中...";
@@ -564,12 +562,15 @@ async function processUnifiedFlow(code, mode) {
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = "照会中...";
     document.getElementById('sDetailJan').innerText = code;
+    // Yahoo情報を一旦クリア（古い画像が残らないように）
+    document.getElementById('sDetailImage').src = "";
+    document.getElementById('sDetailPrice').innerText = "---";
   } else if (mode === 'stockAll') {
-    document.getElementById('sStockName').innerText = "全店在庫を照会中...";
+    document.getElementById('sStockName').innerText = "在庫照会中...";
     document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">読み込み中...</td></tr>';
   }
 
-  // GASへのアクションとパラメータを決定
+  // GASアクションの振り分け
   const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
   const params = (mode === 'stockAll') ? { barcode: code } : { code: code };
 
@@ -580,19 +581,20 @@ async function processUnifiedFlow(code, mode) {
   
   if (!res) { alert("データが見つかりませんでした"); resetUI(false); return; }
 
-  // --- 取得後の表示処理（既存機能＋新機能） ---
+  // --- 取得後の表示処理 ---
 
   if (mode === 'scan') {
-    // 期限登録モードの既存処理
+    // 【期限登録モード】
     document.getElementById('itemNameDisplay').innerText = res.name;
     document.getElementById('mainRegBtn').disabled = false;
 
   } else if (mode === 'search') {
-    // 商品検索モードの既存処理（Yahoo詳細含む）
+    // 【商品検索モード】 Yahoo詳細をしっかり表示
     document.getElementById('sDetailName').innerText = res.name;
     const dCode = res.janCode || code;
     document.getElementById('sDetailJan').innerText = dCode;
     document.getElementById('sDetailJanTop').innerText = dCode;
+    
     if (res.yahoo) {
       document.getElementById('sDetailPrice').innerText = Number(res.yahoo.price).toLocaleString();
       document.getElementById('sDetailImage').src = res.yahoo.imageUrl;
@@ -603,7 +605,7 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('mainSaveBtn').disabled = false;
 
   } else if (mode === 'stockAll') {
-    // 全店在庫照会モードの新処理
+    // 【全店在庫照会モード】
     showAllStoreStock(res);
   }
 }
@@ -871,6 +873,7 @@ function resetUI(shouldStopCamera = false) {
   document.getElementById('editArea').style.display = 'none';
   document.getElementById('searchDetailArea').style.display = 'none';
   document.getElementById('manualJan').value = ""; 
+  document.getElementById('stockAllDetailArea').style.display = 'none'; // これを追加
 
   // ★ 数量入力欄をブランクにする
   const qtyInput = document.getElementById('qty');

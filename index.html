@@ -197,6 +197,7 @@ button:disabled {
   border: none;
   white-space: nowrap;
   font-weight: bold;
+  text-align: center !important; /* すべて中央揃え */
 }
 
 /* クラスを使って比率とサイズを個別に指定 */
@@ -212,7 +213,7 @@ button:disabled {
   table-layout: fixed; /* これが重要：thの%幅を絶対守らせる */
 }
   .list-table td {
-  padding: 12px 8px;           /* 列間のゆとりを確保 */
+  padding: 12px 10px;           /* 列間のゆとりを確保 */
   vertical-align: middle;
   border-bottom: 1px solid #eee; /* 行間の薄いグレーの罫線 */
   word-break: break-all;       /* 長い商品名の折り返し */
@@ -840,7 +841,7 @@ function getTableHeaderByMode(mode, pageId) {
   
 
 /**
- * 📊 ヘッダー生成 (比率 10:20:50:20 & クラス統合版)
+ * 📊 ヘッダー生成 (出し分け・中央揃え完全版)
  */
 function getTableHeaderByMode(mode, pageId) {
   const selectHeader = `
@@ -850,6 +851,7 @@ function getTableHeaderByMode(mode, pageId) {
     </th>`;
 
   if (mode === 'scan' || mode === 'stockAll') {
+    // 【通常モード】
     return `
       <thead class="cool-header">
         <tr>
@@ -860,6 +862,7 @@ function getTableHeaderByMode(mode, pageId) {
         </tr>
       </thead>`;
   } else {
+    // 【検索/ECモード】elseを削らず「EC在庫状況」「EC価格」を表示
     return `
       <thead class="cool-header">
         <tr>
@@ -873,24 +876,25 @@ function getTableHeaderByMode(mode, pageId) {
 }
 
 /**
- * 📋 データ行（TR）生成 (ロジック復元 & カッコ修正版)
+ * 📋 データ行生成 (店情報2行化 & 罫線対応)
  */
 function getRowHtmlByMode(mode, item, pageId) {
-  // 店情報
-  const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.85em; margin-bottom:2px;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
-  
-  // チェックボックス (10%枠)
+  // 店情報を2行表示（コード：太字/小、店名：標準）
+  const shopHeader = `
+    <div style="line-height: 1.2; margin-bottom: 4px;">
+      <div style="color:#2c3e50; font-weight:bold; font-size:0.85em;">${item.shopCode || ''}</div>
+      <div style="color:#666; font-size:0.9em;">${item.shopName || ''}</div>
+    </div>`;
+
   const checkbox = `
     <td class="col-check">
       <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="width:18px; height:18px;">
     </td>`;
 
   if (mode === 'scan' || mode === 'stockAll') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0,0,0,0);
     const dateStr = item.expiry || "";
     const expiryDate = new Date(dateStr.replace(/\//g, '-'));
-    // 期限切れの赤字判定
     let rowClass = (dateStr && !isNaN(expiryDate) && expiryDate <= today) ? 'danger' : '';
     
     const stockDisplay = (pageId === 'pageAll') 
@@ -900,20 +904,18 @@ function getRowHtmlByMode(mode, item, pageId) {
     return `
       <tr class="${rowClass}">
         ${checkbox}
-        <td class="col-info1">
+        <td class="col-info1" style="text-align: left;">
           ${shopHeader}
-          <div>${dateStr}</div>
+          <div style="font-weight:bold; color:#e74c3c; font-size:1.1em;">${dateStr}</div>
         </td>
-        <td class="col-info2">
+        <td class="col-info2" style="text-align: left;">
           <div class="jan-text" style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
-          <div style="line-height:1.2; font-weight:bold;">${item.itemName || item.name || "名称不明"}</div>
+          <div style="line-height:1.3; font-weight:bold;">${item.itemName || item.name || "名称不明"}</div>
           ${stockDisplay}
         </td>
-        <td class="col-info3">
+        <td class="col-info3" style="text-align: right; padding-right:15px;">
           <div onclick="editQty('${item.recordId}', ${item.qty})" 
-               style="display:inline-block; width:55px; height:35px; line-height:35px; 
-                      border: 1px solid #3498db; border-radius: 4px; background: #fff; 
-                      color: #333; font-weight: bold; cursor: pointer; text-align:center;">
+               style="display:inline-block; width:55px; height:35px; line-height:35px; border:1px solid #3498db; border-radius:4px; background:#fff; color:#333; font-weight:bold; cursor:pointer; text-align:center;">
             <span id="qty-val-${item.recordId}">${item.qty}</span>
           </div>
         </td>
@@ -921,24 +923,23 @@ function getRowHtmlByMode(mode, item, pageId) {
 
   } else if (mode === 'search') {
     const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
-    const makerName = item.brand || item.maker || "";
-
     return `
       <tr>
         ${checkbox}
-        <td class="col-info1">
+        <td class="col-info1" style="text-align: left;">
           ${shopHeader}
           <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
         </td>
-        <td class="col-info2">
+        <td class="col-info2" style="text-align: left;">
           <div class="jan-text" style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
-          <div style="font-size:0.85em; color:#7f8c8d; margin-bottom:2px;">${makerName}</div>
-          <div style="line-height:1.2; font-weight:bold;">${item.itemName || item.name || "名称不明"}</div>
+          <div style="line-height:1.3; font-weight:bold;">${item.itemName || item.name || "名称不明"}</div>
         </td>
-        <td class="col-info3" style="color:#e67e22; font-weight:bold;">${priceDisp}</td>
+        <td class="col-info3" style="text-align: right; padding-right:15px; color:#e67e22; font-weight:bold;">
+          ${priceDisp}
+        </td>
       </tr>`;
   }
-  return ""; 
+  return "";
 }
 
   

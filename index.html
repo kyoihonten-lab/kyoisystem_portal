@@ -497,24 +497,26 @@ async function processUnifiedFlow(code, mode) {
   const isScanMode = (mode === 'scan');
   document.getElementById('scanActionArea').style.display = 'none';
 
-  // --- 🌟 ここから自動スクロールの仕掛け ---
+// 1. 表示するターゲットを決定
+  // 期限登録なら 'editArea'、商品検索なら 'searchDetailArea'
   let targetId = isScanMode ? 'editArea' : 'searchDetailArea';
   const targetEl = document.getElementById(targetId);
   targetEl.style.display = 'block';
 
-  // ヘッダーの高さを考慮してスクロール
+  // 2. 自動スクロール（カメラを追い越してヘッダーの真下へ）
   const headerHeight = 100; // 1段目(45) + 2段目(55)
   setTimeout(() => {
     const offset = targetEl.offsetTop - headerHeight;
     window.scrollTo({ top: offset, behavior: 'smooth' });
     
-    // 期限登録モードなら数量入力にフォーカス
+    // スキャンモードの時だけ「数量」にフォーカス
     if (isScanMode) {
       const qtyInput = document.getElementById('qty');
-      qtyInput.focus();
+      if (qtyInput) qtyInput.focus();
     }
-  }, 100); // 表示されるのを一瞬待ってから動かす
-  // --- 🌟 ここまで ---
+  }, 100);
+
+  // --- 以降、GASへの問い合わせ処理 ---
 
   if (isScanMode) {
     document.getElementById('editArea').style.display = 'block';

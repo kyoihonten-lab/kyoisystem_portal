@@ -1069,57 +1069,57 @@ function handleScroll() { const btn = document.getElementById('backToTop'); if (
 /**
  * 🔄 ページとデータの再読み込み（最新の状態を反映）
  */
+/**
+ * 🔄 ページとデータの再読み込み（モード判定を厳格化）
+ */
 async function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
   
-  // 1. まず先に画面を切り替えてしまう（ユーザーへのレスポンスを速くする）
-  // これにより、ナビゲーションの active クラスも即座に更新されます
   showPage(pageId);
-
-  // スキャンページ（unifiedPage）の場合は、表示切り替えだけで終了
   if (pageId === 'pageScan' || pageId === 'unifiedPage') return;
 
   const container = document.getElementById(pageId);
   const targetBtn = container ? container.querySelector('.btn-list-init') : null;
   const targetView = document.getElementById('view_' + pageId);
 
-  // 期限チェック表示などのボタン名保持
-  const originalText = (pageId === 'pageAll') ? "全店舗リスト表示" : 
-                        (pageId === 'pageList') ? "期限チェック表示" : "リスト表示";
+  // --- 【修正ポイント1】登録リスト(pageSummary)のモード制限 ---
+  if (pageId === 'pageSummary' && mode === 'stockAll') {
+    if (targetView) {
+      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モード、または商品検索モードに切り替えてください</div>';
+    }
+    return;
+  }
 
-  // モードチェックのガード
-  if ((pageId === 'pageList' || pageId === 'pageAll') && mode !== 'scan') {
+  // 期限チェック(pageList)は期限登録モードのみ
+  if (pageId === 'pageList' && mode !== 'scan') {
     if (targetView) {
       targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてから実行してください</div>';
     }
     return;
   }
   
-  // 店コードチェック
   if (!shopCode && pageId !== 'pageAll') {
     alert("店コードを入力してください");
     return;
   }
 
-  // ボタンを「更新中」状態にロック
   if (targetBtn) {
     targetBtn.disabled = true;
     targetBtn.innerText = "更新中...";
     targetBtn.style.opacity = "0.5";
   }
-
   if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
 
   try {
-    // データの取得を実行
     if (pageId === 'pageList') {
       await showAlertList();
     } 
     else if (pageId === 'pageSummary') {
+      // モードに合わせて自店リストの中身を出し分け
       if (mode === 'scan') {
         await loadShopDetail();
-      } else {
+      } else if (mode === 'search') {
         await loadPriceCheckDetail();
       }
     } 
@@ -1128,17 +1128,37 @@ async function refreshPage(pageId) {
     }
   } catch (e) {
     console.error("Refresh Error:", e);
-    if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;color:red;">データの取得に失敗しました</div>';
   } finally {
-    // ボタンを元に戻す
     if (targetBtn) {
       targetBtn.disabled = false;
-      targetBtn.innerText = originalText;
+      targetBtn.innerText = (pageId === 'pageAll') ? "全店舗リスト表示" : (pageId === 'pageList') ? "期限チェック表示" : "リスト表示";
       targetBtn.style.opacity = "1.0";
     }
-    // ページ更新時に全選択チェックを外しておく
-    const masterCheck = document.getElementById('selectAll_' + pageId);
-    if (masterCheck) masterCheck.checked = false;
+  }
+}
+
+/**
+ * 【修正ポイント2】全店舗リスト用：モード別のデータ取得
+ */
+function loadAllProducts() {
+  const mode = document.getElementById('mainModeSelect').value;
+  const pageId = 'pageAll';
+  
+  // 1. 期限登録モード または 全店在庫照会モード のとき（期限データのリスト）
+  if (mode === 'scan' || mode === 'stockAll') {
+    return callGAS("getAllProductList").then(list => renderList(pageId, list));
+  } 
+  // 2. 商品検索モード のとき（検索・価格チェックデータのリスト）
+  else if (mode === 'search') {
+    // shopCodeを空にすることで全店舗の価格チェックリストを取得
+    return callGAS("getPriceCheckList", { shopCode: "" })
+      .then(list => {
+        sortListByMode(pageId, list, 'search');
+        renderList(pageId, list);
+      })
+      .catch(err => {
+        document.getElementById('view_pageAll').innerHTML = "データ取得エラー";
+      });
   }
 }
   
@@ -1187,16 +1207,16 @@ function loadAllProducts() {
   const mode = document.getElementById('mainModeSelect').value;
   const pageId = 'pageAll';
   
-  if (mode === 'scan') {
+  // 1. 期限登録モード または 全店在庫照会モード のとき（期限データのリスト）
+  if (mode === 'scan' || mode === 'stockAll') {
     return callGAS("getAllProductList").then(list => renderList(pageId, list));
-  } else {
+  } 
+  // 2. 商品検索モード のとき（検索・価格チェックデータのリスト）
+  else if (mode === 'search') {
+    // shopCodeを空にすることで全店舗の価格チェックリストを取得
     return callGAS("getPriceCheckList", { shopCode: "" })
       .then(list => {
-        list.sort((a, b) => {
-          const shopComp = String(a.shopCode || "").localeCompare(String(b.shopCode || ""), undefined, { numeric: true });
-          if (shopComp !== 0) return shopComp;
-          return String(a.barcode || "").localeCompare(String(b.barcode || ""), undefined, { numeric: true });
-        });
+        sortListByMode(pageId, list, 'search');
         renderList(pageId, list);
       })
       .catch(err => {

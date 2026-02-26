@@ -587,7 +587,7 @@ async function processUnifiedFlow(code, mode) {
 
   // 5. GAS問い合わせ設定
   const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
-  const params = (mode === 'stockAll') ? { barcode: code } : { code: code };
+  const params = (mode === 'stockAll') ? { code: code } : { code: code };
 
   const res = await callGAS(action, params);
   

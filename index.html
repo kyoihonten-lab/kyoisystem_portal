@@ -72,6 +72,10 @@
   #shopDisplay { font-weight: bold; margin-left: 10px; font-size: 0.9em; flex: 1; color: #2c3e50; }
   .btn-change { margin-left: auto; padding: 8px 12px; background: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold; font-size: 1.2em; }
 
+  /* ついでに：全店在庫リスト等のスクロールエリアを滑らかにする */
+#view_pageList, #view_pageSummary, #view_pageAll {
+  -webkit-overflow-scrolling: touch;
+}
 /* --- ビデオエリア：スクロールで逃げる設定 --- */
 #interactive.viewport { 
   width: 100%; 
@@ -192,15 +196,15 @@ button:disabled {
 /* リスト共通のカッコいいヘッダー設定 */
 /* カッコいいヘッダーの共通設定 */
 .cool-header th {
-  background: #34495e;
-  color: white;
+background: #34495e !important; /* カッコいい濃紺 */
+  color: white !important;         /* 白文字 */
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 10px 5px;
+  padding: 12px 5px;
   font-size: 0.85em;
   border: none;
-  white-space: nowrap; /* 改行を防ぐ */
+  white-space: nowrap;
 }
   .danger td { color: #e74c3c !important; font-weight: bold !important; }
   .shop-info { font-size: 0.9em; color: #2c3e50; font-weight: bold; margin-bottom: 4px; line-height: 1.2; }
@@ -749,7 +753,12 @@ function renderList(pageId, list) {
   list.forEach(item => {
     html += getRowHtmlByMode(mode, item, pageId);
   });
-  view.innerHTML = html + '</table>';
+  // テーブルをスクロール可能な div で包むことで、ヘッダー固定(sticky)を有効にする
+  view.innerHTML = `
+    <div style="max-height: 70vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+      ${html}</table>
+    </div>`;
+}
 }
 
 /**
@@ -950,33 +959,64 @@ function resetUI(shouldStopCamera = false) {
   }
 }
   
+/**
+ * ページ切り替え関数 (完成形)
+ */
 function showPage(pageId) {
+  // 1. 安全策：カメラ停止と画面トップへ移動
   try { stopAllCameras(); } catch(e) {}
-  
-  // ページ切り替え
+  scrollToTop();
+
+  // 2. ページ本体の表示切り替え
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const targetId = (pageId === 'pageScan') ? 'unifiedPage' : pageId;
+  
+  // pageScan の場合は unifiedPage を表示
+  const targetId = (pageId === 'pageScan' || pageId.toLowerCase() === 'pagescan') ? 'unifiedPage' : pageId;
   const targetEl = document.getElementById(targetId);
   if (targetEl) targetEl.classList.add('active');
 
-  // ナビゲーションの active 切り替え
+  // 3. ナビゲーションの active 切り替え (onclick属性の中身で判定)
   const navs = document.querySelectorAll('.nav-item');
-  const pages = ['pageScan','pageList','pageSummary','pageAll'];
-  navs.forEach((n, i) => n.classList.toggle('active', pages[i] === pageId));
+  navs.forEach(item => {
+    item.classList.remove('active');
+    const onclickText = item.getAttribute('onclick') || "";
+    // ボタンの引数に pageId が含まれていれば active にする
+    if (onclickText.includes(pageId)) {
+      item.classList.add('active');
+    }
+  });
 
+  // 4. 各モードごとの初期化・案内処理
   if (pageId === 'pageScan') {
     resetUI(false);
   } else {
-    // ★ここがポイント：自動で refreshPage を呼ばないようにします。
-    // もしページが真っ白で気になるなら、初期メッセージだけ出す。
+    // データが空の場合、案内メッセージを出す
     const view = document.getElementById('view_' + pageId);
-    if (view && view.innerHTML === "") {
-       view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">「リスト表示」ボタンを押してください</div>';
+    if (view && (view.innerHTML === "" || view.innerHTML.includes("読み込み中"))) {
+      view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">「リスト表示」ボタンを押してください</div>';
     }
   }
-  scrollToTop();
+
+  // 5. 【重要】現在のページIDをブラウザに保存（リフレッシュ対策）
+  localStorage.setItem('lastPage', pageId);
 }
 
+/**
+ * 補助関数：画面を一番上まで戻す
+ */
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+/**
+ * 起動時の処理
+ */
+window.onload = function() {
+  // 保存されていたページがあれば復元、なければスキャンページを表示
+  const lastPage = localStorage.getItem('lastPage') || 'pageScan';
+  showPage(lastPage);
+};
+  
 function handleModeChange() {
   // 1. カメラ停止とUIリセット（既存の処理）
   stopAllCameras();
@@ -1006,43 +1046,41 @@ function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
 
 /**
- * 🔄 ページとデータの再読み込み（ボタンの更新中表示を含む）
+ * 🔄 ページとデータの再読み込み（最新の状態を反映）
  */
-
-function refreshPage(pageId) {
+async function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
-  // ページを切り替えたり更新したりするときに、全選択チェックを外しておく
   
+  // ページ更新時に全選択チェックを外しておく
   const masterCheck = document.getElementById('selectAll_' + pageId);
   if (masterCheck) masterCheck.checked = false;
   
-  // 1. ページ要素とボタンの特定
   if (pageId === 'pageScan' || pageId === 'unifiedPage') return;
+
   const container = document.getElementById(pageId);
   const targetBtn = container ? container.querySelector('.btn-list-init') : null;
   const targetView = document.getElementById('view_' + pageId);
 
-  // ボタンの元のテキストを保持（全店舗リストならその名前で戻すため）
+  // ボタンのテキスト保持
   const originalText = (pageId === 'pageAll') ? "全店舗リスト表示" : 
                        (pageId === 'pageList') ? "期限チェック表示" : "リスト表示";
 
-  // --- 【重要】在庫チェックページのガード ---
+  // モードガード（期限管理のみ）
   if (pageId === 'pageList' && mode !== 'scan') {
     if (targetView) {
       targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてから実行してください</div>';
     }
-    return; // ここで終了。ボタンも更新中にはならない
+    return;
   }
 
-  // 2. ボタンを「更新中」状態にロック
+  // ボタンを「更新中」状態にロック
   if (targetBtn) {
     targetBtn.disabled = true;
     targetBtn.innerText = "更新中...";
     targetBtn.style.opacity = "0.5";
   }
 
-  // ボタンを元に戻すための共通処理
   const resetBtn = () => {
     if (targetBtn) {
       targetBtn.disabled = false;
@@ -1051,7 +1089,7 @@ function refreshPage(pageId) {
     }
   };
 
-  // 店コードチェック
+  // 店コードチェック（全店リスト以外）
   if (!shopCode && pageId !== 'pageAll') {
     alert("店コードを入力してください");
     resetBtn();
@@ -1060,22 +1098,31 @@ function refreshPage(pageId) {
 
   if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
 
-  // 3. 各モード・ページに応じて実行（すべて return して Promise を繋ぐ）
-  if (pageId === 'pageList') {
-    // 期限チェック：showAlertList が return callGAS(...) している必要があります
-    return showAlertList().finally(resetBtn);
-  } 
-  else if (pageId === 'pageSummary') {
-    // 登録リスト（自店）：モードによって呼び出す関数を変える
-    if (mode === 'scan') {
-      return loadShopDetail().finally(resetBtn);
-    } else {
-      return loadPriceCheckDetail().finally(resetBtn);
+  try {
+    // 各モード・ページに応じて実行
+    if (pageId === 'pageList') {
+      await showAlertList();
+    } 
+    else if (pageId === 'pageSummary') {
+      if (mode === 'scan') {
+        await loadShopDetail();
+      } else {
+        await loadPriceCheckDetail();
+      }
+    } 
+    else if (pageId === 'pageAll') {
+      await loadAllProducts();
     }
-  } 
-  else if (pageId === 'pageAll') {
-    // 全店舗リスト：この関数内で内部的に mode 判定して取得する
-    return loadAllProducts().finally(resetBtn);
+
+    // ★ ここがポイント：データの読み込みが終わったら、再度 showPage を呼んで
+    // ナビゲーションの状態（activeクラス）を確実に同期させる
+    showPage(pageId);
+
+  } catch (e) {
+    console.error("Refresh Error:", e);
+    if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;color:red;">データの取得に失敗しました</div>';
+  } finally {
+    resetBtn();
   }
 }
   
@@ -1309,13 +1356,13 @@ function showAllStoreStock(response) {
   }
 
   // 2. 在庫リストの生成
-  response.stocks.forEach(row => {
+response.stocks.forEach(row => {
     const tr = document.createElement('tr');
     
-    // 在庫数による色分け
+    // 在庫数による色分け設定
     const stockVal = Number(row.stock);
     let stockColor = "#2980b9"; 
-    if (stockVal < 0) stockColor = "#e74c3c"; // マイナスは赤
+    if (stockVal < 0) stockColor = "#e74c3c";
     if (stockVal === 0) stockColor = "#95a5a6";
 
     // 店コードと店名の分離
@@ -1325,12 +1372,12 @@ function showAllStoreStock(response) {
 
     tr.innerHTML = `
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
-        <div style="color:#7f8c8d; font-size:0.8em;">${shopCode}</div>
-        <div style="font-weight:bold; color:#2c3e50;">${shopName}</div>
+        <div style="font-weight:bold; color:#2c3e50; font-size:1.0em;">${shopCode}</div>
+        <div style="font-weight:bold; color:#2c3e50; font-size:1.0em;">${shopName}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
-        <div style="color:#7f8c8d; font-size:0.8em;">${response.janCode || currentCode}</div>
-        <div style="color:#333; line-height:1.2;">${response.itemName || "---"}</div>
+        <div style="color:#7f8c8d; font-size:0.9em;">${response.janCode || currentCode}</div>
+        <div style="color:#333; font-weight:bold; line-height:1.2;">${response.itemName || "---"}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align:right; vertical-align: middle;">
         <span style="font-size:1.1em; font-weight:bold; color:${stockColor};">
@@ -1340,7 +1387,7 @@ function showAllStoreStock(response) {
     `;
     tbody.appendChild(tr);
   });
-} 
+}
 window.onscroll = handleScroll;
 </script>
 </body>

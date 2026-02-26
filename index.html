@@ -800,35 +800,39 @@ function sortListByMode(pageId, list, mode) {
   
 
 /**
- * 📊 CSSクラス (.col-check, .col-info1~3) を使用したヘッダー生成
+ * 📊 モードによってヘッダーの文言を完全に切り替える関数
+ * カッコの閉じ忘れ（Syntax Error）をすべて修正しました。
  */
 function getTableHeaderByMode(mode, pageId) {
+  // 1. 全モード共通：一括チェックボックス列 (幅10%はCSSの.col-checkで制御)
   const selectHeader = `
     <th class="col-check">
       一括<br>
       <input type="checkbox" id="selectAll_${pageId}" onclick="toggleAllChecks(this, '${pageId}')" style="width:18px; height:18px;">
     </th>`;
 
-  const col1Name = (mode === 'scan' || mode === 'stockAll') ? "期限" : "状況";
-  const col3Name = (mode === 'scan' || mode === 'stockAll') ? "数" : "価格";
-
-  return `
-    <thead class="cool-header">
-      <tr>
-        ${selectHeader}
-        <th class="col-info1">${col1Name}</th>
-        <th class="col-info2">商品情報</th>
-        <th class="col-info3">${col3Name}</th>
-      </tr>
-    </thead>`;
-} else {
+  // 2. モードによる条件分岐
+  if (mode === 'scan' || mode === 'stockAll') {
+    // 【スキャン・全店在庫モード】
     return `
-      <thead style="${stickyStyle}">
+      <thead class="cool-header">
         <tr>
           ${selectHeader}
-          <th style="width: 20%; text-align:left; font-size: 0.75em;">EC在庫状況</th>
-          <th style="width: 50%; text-align:left; font-size: 0.8em;">商品情報</th>
-          <th style="width: 20%; text-align:right; font-size: 0.9em; padding-right: 15px;">EC価格</th>
+          <th class="col-info1">期限</th>
+          <th class="col-info2">商品情報</th>
+          <th class="col-info3">数</th>
+        </tr>
+      </thead>`;
+  } else {
+    // 【検索・EC在庫モード】
+    // ここで「EC在庫状況」と「EC価格」を確実に出し分けます
+    return `
+      <thead class="cool-header">
+        <tr>
+          ${selectHeader}
+          <th class="col-info1">EC在庫状況</th>
+          <th class="col-info2">商品情報</th>
+          <th class="col-info3">EC価格</th>
         </tr>
       </thead>`;
   }

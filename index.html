@@ -497,6 +497,25 @@ async function processUnifiedFlow(code, mode) {
   const isScanMode = (mode === 'scan');
   document.getElementById('scanActionArea').style.display = 'none';
 
+  // --- 🌟 ここから自動スクロールの仕掛け ---
+  let targetId = isScanMode ? 'editArea' : 'searchDetailArea';
+  const targetEl = document.getElementById(targetId);
+  targetEl.style.display = 'block';
+
+  // ヘッダーの高さを考慮してスクロール
+  const headerHeight = 100; // 1段目(45) + 2段目(55)
+  setTimeout(() => {
+    const offset = targetEl.offsetTop - headerHeight;
+    window.scrollTo({ top: offset, behavior: 'smooth' });
+    
+    // 期限登録モードなら数量入力にフォーカス
+    if (isScanMode) {
+      const qtyInput = document.getElementById('qty');
+      qtyInput.focus();
+    }
+  }, 100); // 表示されるのを一瞬待ってから動かす
+  // --- 🌟 ここまで ---
+
   if (isScanMode) {
     document.getElementById('editArea').style.display = 'block';
     document.getElementById('expiry').value = new Date().toISOString().split('T')[0];

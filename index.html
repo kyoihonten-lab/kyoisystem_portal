@@ -840,13 +840,46 @@ function getTableHeaderByMode(mode, pageId) {
   
 
 /**
- * 📋 データ行（TR）生成 (クラス付与＆カッコ修正版)
+ * 📊 ヘッダー生成 (比率 10:20:50:20 & クラス統合版)
+ */
+function getTableHeaderByMode(mode, pageId) {
+  const selectHeader = `
+    <th class="col-check">
+      一括<br>
+      <input type="checkbox" id="selectAll_${pageId}" onclick="toggleAllChecks(this, '${pageId}')" style="width:18px; height:18px;">
+    </th>`;
+
+  if (mode === 'scan' || mode === 'stockAll') {
+    return `
+      <thead class="cool-header">
+        <tr>
+          ${selectHeader}
+          <th class="col-info1">期限</th>
+          <th class="col-info2">商品情報</th>
+          <th class="col-info3">数</th>
+        </tr>
+      </thead>`;
+  } else {
+    return `
+      <thead class="cool-header">
+        <tr>
+          ${selectHeader}
+          <th class="col-info1">EC在庫状況</th>
+          <th class="col-info2">商品情報</th>
+          <th class="col-info3">EC価格</th>
+        </tr>
+      </thead>`;
+  }
+}
+
+/**
+ * 📋 データ行（TR）生成 (ロジック復元 & カッコ修正版)
  */
 function getRowHtmlByMode(mode, item, pageId) {
   // 店情報
   const shopHeader = `<div class="shop-info" style="color:#666; font-size:0.85em; margin-bottom:2px;">${item.shopCode || ''} ${item.shopName || ''}</div>`;
   
-  // チェックボックス
+  // チェックボックス (10%枠)
   const checkbox = `
     <td class="col-check">
       <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode}" style="width:18px; height:18px;">
@@ -857,6 +890,7 @@ function getRowHtmlByMode(mode, item, pageId) {
     today.setHours(0, 0, 0, 0);
     const dateStr = item.expiry || "";
     const expiryDate = new Date(dateStr.replace(/\//g, '-'));
+    // 期限切れの赤字判定
     let rowClass = (dateStr && !isNaN(expiryDate) && expiryDate <= today) ? 'danger' : '';
     
     const stockDisplay = (pageId === 'pageAll') 

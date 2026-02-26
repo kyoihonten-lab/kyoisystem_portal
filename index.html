@@ -962,9 +962,6 @@ function resetUI(shouldStopCamera = false) {
 /**
  * ページ切り替え関数 (完成形)
  */
-/**
- * ページ切り替え関数 (修正版)
- */
 function showPage(pageId) {
   // 1. まずカメラを確実に止める
   stopAllCameras();
@@ -1407,7 +1404,7 @@ response.stocks.forEach(row => {
     tbody.appendChild(tr);
   });
 }
-window.onscroll = handleScroll;
+
 </script>
 </body>
 </html>

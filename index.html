@@ -28,8 +28,7 @@
 .shop-area { 
   background: #fff; height: 55px; padding: 0 10px; border-bottom: 2px solid #ddd;
   display: flex; align-items: center; 
-  position: sticky; 
-  top: 45px; /* 1段目の真下に固定 */
+  position: sticky; top: 45px; /* 1段目の真下に固定 */
   z-index: 195; margin: 0; box-sizing: border-box;
 }
 
@@ -48,6 +47,7 @@
   box-sizing: border-box;
 }
 
+
 /* スキャンページのモード選択だけを別途固定する設定を追加 */
 #unifiedModeArea {
   position: sticky;
@@ -58,7 +58,18 @@
   border-bottom: 1px solid #ddd;
 }  
 
-
+/* --- 4段目: リスト自体のヘッダー --- */
+/* リストはスクロールdiv内にあるため、その枠内での top:0 指定 */
+.list-table thead th {
+  position: sticky;
+  top: 0; 
+  z-index: 10; 
+  background: #34495e;
+  color: white;
+  padding: 10px 4px;
+  font-size: 0.85em; /* 統一感のためのサイズ */
+  border-bottom: 2px solid #ccc;
+}
  
   #shopInput { width: 80px; height: 35px; font-size: 1.0em; text-align: center; border: 2px solid #3498db; background: #fff; border-radius: 4px; font-weight: bold; }
   #shopDisplay { font-weight: bold; margin-left: 10px; font-size: 0.9em; flex: 1; color: #2c3e50; }

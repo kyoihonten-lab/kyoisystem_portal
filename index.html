@@ -226,12 +226,11 @@ button:disabled {
   </button>
 </div>
     
-
 <div id="unifiedModeArea">            
-<style="background: #fff; padding: 10px; border-bottom: 1px solid #ddd;">
   <select id="mainModeSelect" onchange="handleModeChange()" style="width: 100%; height: 50px; font-size: 1.1em; font-weight: bold; border: 2px solid #3498db; border-radius: 8px; background-color: #ebf5fb;">
     <option value="scan">📷 期限登録モード</option>
     <option value="search">🔍 商品検索モード</option>
+    <option value="stockAll">🌍 全店在庫照会モード</option>        
   </select>
 </div>
 
@@ -293,6 +292,26 @@ button:disabled {
         <button id="mainSaveBtn" class="btn-action btn-reg" onclick="saveSearchPrice()">保存</button>
       </div>
     </div>
+
+  <div id="stockAllDetailArea" style="display:none; padding: 10px;">
+  <div id="sStockName" style="font-size:1.2em; font-weight:bold; color:#d35400; text-align:center; margin-bottom:15px;"></div>
+  
+  <table style="width:100%; border-collapse: collapse; background: white; font-size: 0.9em; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <thead style="background: #34495e; color: white;">
+      <tr>
+        <th style="padding: 10px; text-align:left;">店コード・店名</th>
+        <th style="padding: 10px; text-align:left;">JAN・商品名</th>
+        <th style="padding: 10px; text-align:right;">在庫</th>
+      </tr>
+    </thead>
+    <tbody id="stockAllTableBody">
+      </tbody>
+  </table>
+  
+  <div style="margin-top:20px;">
+    <button class="btn-action btn-can" onclick="resetUI(false)" style="width:100%;">戻る</button>
+  </div>
+</div>        
   </div> 
 </div>
 
@@ -1196,7 +1215,39 @@ function toggleAllChecks(source, pageId) {
     cb.checked = source.checked;
   });
 }
+
+/**
+ * 全店在庫の結果を画面に表示 (JS)
+ */
+function showAllStoreStock(response) {
+  const tbody = document.getElementById('stockAllTableBody');
+  const nameDisplay = document.getElementById('sStockName');
   
+  nameDisplay.innerText = response.itemName;
+  tbody.innerHTML = ""; // 前の結果をクリア
+
+  if (response.stocks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center;">該当商品の在庫データが見つかりません</td></tr>';
+    return;
+  }
+
+  response.stocks.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding:10px; border-bottom:1px solid #eee;">${row.shopInfo}</td>
+      <td style="padding:10px; border-bottom:1px solid #eee; font-size:0.8em; color:#666;">${row.itemInfo}</td>
+      <td style="padding:10px; border-bottom:1px solid #eee; text-align:right; font-weight:bold; color:#2980b9;">${row.stock}</td>
+    `;
+    tbody.innerHTML += tr.innerHTML;
+  });
+  
+  // スキャン後の「シュッ」とした移動
+  const targetEl = document.getElementById('stockAllDetailArea');
+  window.scrollTo({
+    top: targetEl.offsetTop - 160,
+    behavior: 'smooth'
+  });
+}  
   
 window.onscroll = handleScroll;
 </script>

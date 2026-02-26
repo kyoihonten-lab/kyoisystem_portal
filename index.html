@@ -739,24 +739,26 @@ function renderList(pageId, list) {
 
   // ボタンの表示連動
   if(bulkBtn) bulkBtn.style.display = 'block';
-  // 在庫確認ボタンは「全店ページ」かつ「期限登録モード」の時だけ
   if(stockBtn) {
-    stockBtn.style.display = (pageId === 'pageAll' && mode === 'scan') ? 'block' : 'none';
+    stockBtn.style.display = (pageId === 'pageAll' && (mode === 'scan' || mode === 'stockAll')) ? 'block' : 'none';
   }
-　let html = `<table class="list-table">${getTableHeaderByMode(mode, pageId)}`;
+
+  let html = `<table style="width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed;">
+                ${getTableHeaderByMode(mode, pageId)}
+                <tbody>`;
   
   list.forEach(item => {
     html += getRowHtmlByMode(mode, item, pageId);
   });
-  // テーブルをスクロール可能な div で包むことで、ヘッダー固定(sticky)を有効にする
-view.innerHTML = `
-    <div style="max-height: 70vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
-      <table class="list-table" style="width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed;">
-        ${html}
-      </table>
+  
+  html += `</tbody></table>`;
+
+  // スクロールコンテナの設定を強化
+  view.innerHTML = `
+    <div style="position: relative; max-height: 70vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+      ${html}
     </div>`;
 }
-
 
 /**
  * モード別の並べ替えロジック
@@ -787,39 +789,39 @@ function sortListByMode(pageId, list, mode) {
  * モード別のテーブルヘッダー（一括チェックボックス付き）
  */
 function getTableHeaderByMode(mode, pageId) {
-  // 全選択チェックボックス部分
   const selectHeader = `
-    <th style="text-align:center; width:55px;">
+    <th style="text-align:center; width:55px; background: #34495e;">
       選択<br>
       <input type="checkbox" id="selectAll_${pageId}" 
              onclick="toggleAllChecks(this, '${pageId}')" 
              style="width:20px; height:20px; margin-top:4px; cursor:pointer;">
     </th>`;
 
-  // クラス「cool-header」を付与して、見た目はCSSにお任せ
-  if (mode === 'scan') {
+  // position: sticky と z-index を style に直接記述して固定を確実にする
+  const stickyStyle = 'position: sticky; top: 0; z-index: 100; background: #34495e; color: white;';
+
+  if (mode === 'scan' || mode === 'stockAll') {
     return `
-      <thead class="cool-header">
+      <thead style="${stickyStyle}">
         <tr>
           ${selectHeader}
-          <th style="text-align:left;">期限</th>
-          <th style="text-align:left;">商品情報</th>
-          <th style="text-align:right; width:50px;">数</th>
+          <th style="text-align:left; padding: 8px;">期限</th>
+          <th style="text-align:left; padding: 8px;">商品情報</th>
+          <th style="text-align:right; width:50px; padding: 8px;">数</th>
         </tr>
       </thead>`;
   } else {
     return `
-      <thead class="cool-header">
+      <thead style="${stickyStyle}">
         <tr>
           ${selectHeader}
-          <th style="text-align:left;">EC在庫状況</th>
-          <th style="text-align:left;">商品情報</th>
-          <th style="text-align:right; width:70px;">EC参考価格</th>
+          <th style="text-align:left; padding: 8px;">EC在庫状況</th>
+          <th style="text-align:left; padding: 8px;">商品情報</th>
+          <th style="text-align:right; width:70px; padding: 8px;">EC価格</th>
         </tr>
       </thead>`;
   }
 }
-
 /**
  * モード別の行（TR）生成（色付け・データ参照を修正）
  */

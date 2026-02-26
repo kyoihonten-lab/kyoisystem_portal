@@ -1082,37 +1082,35 @@ async function refreshPage(pageId) {
   const mode = document.getElementById('mainModeSelect').value;
   const shopCode = document.getElementById('shopInput').value;
   
-  // ページ更新時に全選択チェックを外しておく
-  const masterCheck = document.getElementById('selectAll_' + pageId);
-  if (masterCheck) masterCheck.checked = false;
-  
+  // 1. まず先に画面を切り替えてしまう（ユーザーへのレスポンスを速くする）
+  // これにより、ナビゲーションの active クラスも即座に更新されます
+  showPage(pageId);
+
+  // スキャンページ（unifiedPage）の場合は、表示切り替えだけで終了
   if (pageId === 'pageScan' || pageId === 'unifiedPage') return;
 
   const container = document.getElementById(pageId);
   const targetBtn = container ? container.querySelector('.btn-list-init') : null;
   const targetView = document.getElementById('view_' + pageId);
 
-  // ボタンのテキスト保持
+  // 期限チェック表示などのボタン名保持
   const originalText = (pageId === 'pageAll') ? "全店舗リスト表示" : 
-                       (pageId === 'pageList') ? "期限チェック表示" : "リスト表示";
+                        (pageId === 'pageList') ? "期限チェック表示" : "リスト表示";
 
-// --- 【重要】期限管理関連ページのガード ---
-  // 1. 期限チェック（pageList）のガード
-  if (pageId === 'pageList' && mode !== 'scan') {
+  // モードチェックのガード
+  if ((pageId === 'pageList' || pageId === 'pageAll') && mode !== 'scan') {
     if (targetView) {
       targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてから実行してください</div>';
     }
     return;
   }
-
-  // ★ 追加：2. 全店在庫照会（pageAll）が期限管理モード以外で押された時のガード
-  if (pageId === 'pageAll' && mode !== 'scan') {
-    if (targetView) {
-      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてから実行してください<br><span style="font-size:0.8em;font-weight:normal;">(全店在庫は期限管理データから抽出します)</span></div>';
-    }
+  
+  // 店コードチェック
+  if (!shopCode && pageId !== 'pageAll') {
+    alert("店コードを入力してください");
     return;
   }
-  
+
   // ボタンを「更新中」状態にロック
   if (targetBtn) {
     targetBtn.disabled = true;
@@ -1120,25 +1118,10 @@ async function refreshPage(pageId) {
     targetBtn.style.opacity = "0.5";
   }
 
-  const resetBtn = () => {
-    if (targetBtn) {
-      targetBtn.disabled = false;
-      targetBtn.innerText = originalText;
-      targetBtn.style.opacity = "1.0";
-    }
-  };
-
-  // 店コードチェック（全店リスト以外）
-  if (!shopCode && pageId !== 'pageAll') {
-    alert("店コードを入力してください");
-    resetBtn();
-    return;
-  }
-
   if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;">読み込み中...</div>';
 
   try {
-    // 各モード・ページに応じて実行
+    // データの取得を実行
     if (pageId === 'pageList') {
       await showAlertList();
     } 
@@ -1152,16 +1135,19 @@ async function refreshPage(pageId) {
     else if (pageId === 'pageAll') {
       await loadAllProducts();
     }
-
-    // ★ ここがポイント：データの読み込みが終わったら、再度 showPage を呼んで
-    // ナビゲーションの状態（activeクラス）を確実に同期させる
-    showPage(pageId);
-
   } catch (e) {
     console.error("Refresh Error:", e);
     if (targetView) targetView.innerHTML = '<div style="padding:20px;text-align:center;color:red;">データの取得に失敗しました</div>';
   } finally {
-    resetBtn();
+    // ボタンを元に戻す
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerText = originalText;
+      targetBtn.style.opacity = "1.0";
+    }
+    // ページ更新時に全選択チェックを外しておく
+    const masterCheck = document.getElementById('selectAll_' + pageId);
+    if (masterCheck) masterCheck.checked = false;
   }
 }
   

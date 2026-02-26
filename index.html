@@ -1258,18 +1258,26 @@ function toggleAllChecks(source, pageId) {
 /**
  * 全店在庫の結果を画面に表示 (JS)
  */
+/**
+ * 全店在庫の結果を画面に表示 (JS) - 修正版
+ */
 function showAllStoreStock(response) {
   const tbody = document.getElementById('stockAllTableBody');
   const nameDisplay = document.getElementById('sStockName');
   
-  nameDisplay.innerText = response.itemName;
-  tbody.innerHTML = ""; // 前の結果をクリア
+  // 1. 商品名の表示
+  nameDisplay.innerText = "📦 " + (response.itemName || "商品名不明");
+  
+  // 2. テーブルのクリア
+  tbody.innerHTML = ""; 
 
-  if (response.stocks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center;">該当商品の在庫データが見つかりません</td></tr>';
+  // 3. 在庫が0件の場合の処理
+  if (!response.stocks || response.stocks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center; color:#999;">該当商品の在庫データが見つかりません</td></tr>';
     return;
   }
 
+  // 4. 行の作成（修正ポイント）
   response.stocks.forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -1277,16 +1285,18 @@ function showAllStoreStock(response) {
       <td style="padding:10px; border-bottom:1px solid #eee; font-size:0.8em; color:#666;">${row.itemInfo}</td>
       <td style="padding:10px; border-bottom:1px solid #eee; text-align:right; font-weight:bold; color:#2980b9;">${row.stock}</td>
     `;
-    tbody.innerHTML += tr.innerHTML;
+    tbody.appendChild(tr); // ★ += ではなく appendChild を使う
   });
   
-  // スキャン後の「シュッ」とした移動
+  // 5. 表示エリアへスクロール
   const targetEl = document.getElementById('stockAllDetailArea');
-  window.scrollTo({
-    top: targetEl.offsetTop - 160,
-    behavior: 'smooth'
-  });
-}  
+  if (targetEl) {
+    window.scrollTo({
+      top: targetEl.offsetTop - 160,
+      behavior: 'smooth'
+    });
+  }
+}　
   
 window.onscroll = handleScroll;
 </script>

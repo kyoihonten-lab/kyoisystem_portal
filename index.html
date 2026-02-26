@@ -546,17 +546,17 @@ function reEnterShopCode() {
 async function processUnifiedFlow(code, mode) {
   if (!code || isFetching) return;
   
-  stopAllCameras(); // カメラを止める
+  stopAllCameras(); 
   currentCode = code;
   isFetching = true;
 
-  // --- お掃除処理（全店在庫エリアも追加） ---
+  // 1. お掃除（表示エリアのリセット）
   ['editArea', 'searchDetailArea', 'stockAllDetailArea', 'scanActionArea'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
 
-  // 1. 表示ターゲットの決定
+  // 2. モードに応じた表示先の決定
   let targetId = 'editArea';
   if (mode === 'search') targetId = 'searchDetailArea';
   if (mode === 'stockAll') targetId = 'stockAllDetailArea';
@@ -564,64 +564,66 @@ async function processUnifiedFlow(code, mode) {
   const targetEl = document.getElementById(targetId);
   targetEl.style.display = 'block';
 
-  // 2. 「シュッ」と移動
+  // 3. シュッと移動
   setTimeout(() => {
-    const scrollOffset = targetEl.offsetTop - 160; 
-    window.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+    window.scrollTo({ top: targetEl.offsetTop - 160, behavior: 'smooth' });
   }, 100);
 
-  // --- GASへの問い合わせ前の一時表示 ---
+  // 4. 初期表示（照会中...）
   if (mode === 'scan') {
-    document.getElementById('expiry').value = new Date().toISOString().split('T')[0];
-    document.getElementById('itemNameDisplay').innerText = "照会中...";
+    document.getElementById('itemNameDisplay').innerText = "商品確認中...";
     document.getElementById('janDisplay').innerText = "JAN: " + code;
+    document.getElementById('expiry').value = new Date().toISOString().split('T')[0];
   } else if (mode === 'search') {
-    document.getElementById('sDetailName').innerText = "照会中...";
+    document.getElementById('sDetailName').innerText = "商品検索中...";
     document.getElementById('sDetailJan').innerText = code;
-    // Yahoo情報を一旦クリア（古い画像が残らないように）
+    // 古いYahoo情報をクリア
     document.getElementById('sDetailImage').src = "";
     document.getElementById('sDetailPrice').innerText = "---";
   } else if (mode === 'stockAll') {
-    document.getElementById('sStockName').innerText = "在庫照会中...";
+    document.getElementById('sStockName').innerText = "全店在庫を確認中...";
     document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">読み込み中...</td></tr>';
   }
 
-  // GASアクションの振り分け
+  // 5. GAS問い合わせ設定
   const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
   const params = (mode === 'stockAll') ? { barcode: code } : { code: code };
 
   const res = await callGAS(action, params);
   
-  if (!isFetching) return;
-  isFetching = false;
+  isFetching = false; // 通信終了
   
-  if (!res) { alert("データが見つかりませんでした"); resetUI(false); return; }
+  if (!res) { 
+    alert("データが取得できませんでした"); 
+    resetUI(false); 
+    return; 
+  }
 
-  // --- 取得後の表示処理 ---
-
+  // 6. 結果の流し込み（ここで Undefined 対策を実施）
   if (mode === 'scan') {
-    // 【期限登録モード】
-    document.getElementById('itemNameDisplay').innerText = res.name;
+    // 登録モード：res.name が無ければ "未登録の商品" と出す
+    document.getElementById('itemNameDisplay').innerText = res.name || "未登録の商品";
     document.getElementById('mainRegBtn').disabled = false;
 
   } else if (mode === 'search') {
-    // 【商品検索モード】 Yahoo詳細をしっかり表示
-    document.getElementById('sDetailName').innerText = res.name;
+    // 検索モード：既存のYahoo詳細もしっかり表示
+    document.getElementById('sDetailName').innerText = res.name || "名称不明";
     const dCode = res.janCode || code;
     document.getElementById('sDetailJan').innerText = dCode;
     document.getElementById('sDetailJanTop').innerText = dCode;
     
     if (res.yahoo) {
-      document.getElementById('sDetailPrice').innerText = Number(res.yahoo.price).toLocaleString();
-      document.getElementById('sDetailImage').src = res.yahoo.imageUrl;
-      document.getElementById('sDetailBrand').innerText = res.yahoo.brand;
-      document.getElementById('sDetailDesc').innerText = res.yahoo.description;
-      document.getElementById('sDetailStock').innerText = res.yahoo.inStock;
+      document.getElementById('sDetailPrice').innerText = res.yahoo.price ? Number(res.yahoo.price).toLocaleString() : "---";
+      document.getElementById('sDetailImage').src = res.yahoo.imageUrl || "";
+      document.getElementById('sDetailBrand').innerText = res.yahoo.brand || "---";
+      document.getElementById('sDetailDesc').innerText = res.yahoo.description || "";
+      document.getElementById('sDetailStock').innerText = res.yahoo.inStock || "0";
     }
     document.getElementById('mainSaveBtn').disabled = false;
 
   } else if (mode === 'stockAll') {
-    // 【全店在庫照会モード】
+    // 全店在庫モード：受け取ったitemNameを表示
+    document.getElementById('sStockName').innerText = "📦 " + (res.itemName || "商品名不明");
     showAllStoreStock(res);
   }
 }

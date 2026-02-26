@@ -964,26 +964,29 @@ function showPage(pageId) {
   // 一旦すべてのページを非表示にする
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   
-  // 対象のページを表示 (pageScan の場合は実体である unifiedPage を表示)
+// 表示対象を決定
   const targetId = (pageId === 'pageScan') ? 'unifiedPage' : pageId;
   const targetEl = document.getElementById(targetId);
+  
   if (targetEl) {
     targetEl.classList.add('active');
+  } else {
+    console.error("Target page not found:", targetId);
+    // 万が一見つからない場合はスキャンへ強制送還
+    document.getElementById('unifiedPage').classList.add('active');
   }
 
-  // 3. ナビゲーションの active 切り替え
-  // <a> や <div> 等の nav-item に対して処理
+// ナビゲーションの光らせる位置を更新
   const navs = document.querySelectorAll('.nav-item');
   navs.forEach(item => {
     item.classList.remove('active');
     const onclickText = item.getAttribute('onclick') || "";
-    // onclick="showPage('pageList')" のような文字列から判定
-    // 引数が一致しているか、または文字列として含まれているかを確認
     if (onclickText.includes(`'${pageId}'`) || onclickText.includes(`"${pageId}"`)) {
       item.classList.add('active');
     }
   });
 
+  
   // 4. 初期表示状態の制御
   if (pageId === 'pageScan') {
     // スキャンページの場合：

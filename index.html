@@ -237,8 +237,24 @@ background: #34495e !important; /* カッコいい濃紺 */
 }
   
   /* 共通パーツ */
-  #backToTop { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: rgba(52, 152, 219, 0.8); color: white; border-radius: 50%; border: none; font-size: 1.5em; display: none; z-index: 2000; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-</style>
+  #backToTop { 
+  position: fixed; 
+  bottom: 80px; 
+  right: 20px; 
+  width: 50px; 
+  height: 50px; 
+  background: rgba(52, 152, 219, 0.9); /* 少し濃くして視認性アップ */
+  color: white; 
+  border-radius: 50%; 
+  border: none; 
+  font-size: 1.5em; 
+  display: none; /* 初期状態は非表示 */
+  z-index: 2500; /* ★ナビバー(1000)より上で、モーダル(3000)より下 */
+  align-items: center; 
+  justify-content: center; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+  cursor: pointer;
+}
 
   
 <script src="https://unpkg.com/@zxing/library@latest"></script>
@@ -757,10 +773,16 @@ function renderList(pageId, list) {
   html += `</tbody></table>`;
 
   // スクロールコンテナの設定を強化
-  view.innerHTML = `
-    <div style="position: relative; max-height: 70vh; overflow-y: auto; overflow-x: hidden; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+view.innerHTML = `
+    <div style="position: relative; max-height: 70vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
       ${html}
     </div>`;
+
+  // ★ここを追加：新しく作られた div のスクロールも監視する
+  const newDiv = view.querySelector('div');
+  if (newDiv) {
+    newDiv.addEventListener('scroll', handleScroll);
+  }
 }
 
 /**
@@ -1040,16 +1062,41 @@ window.onload = function() {
 };
 
 /**
- * 画面を一番上まで戻す
- * behavior を引数で選べるようにしておくと便利です
+ * 🚀 スクロールトップボタンの表示制御
  */
-function scrollToTop(isSmooth = false) {
-  window.scrollTo({ 
-    top: 0, 
-    behavior: isSmooth ? 'smooth' : 'auto' 
-  });
-}
+function handleScroll() {
+  const btn = document.getElementById('backToTop');
+  if (!btn) return;
 
+  // 1. 画面全体のスクロール
+  const scrollY = window.scrollY;
+  // 2. リスト内(div)のスクロール（現在開いているページのリスト）
+  const activePage = document.querySelector('.page.active');
+  const listView = activePage ? activePage.querySelector('[style*="overflow-y: auto"]') : null;
+  const divScroll = listView ? listView.scrollTop : 0;
+
+  // 100px以上スクロールしたら表示
+  if (scrollY > 100 || divScroll > 100) {
+    btn.style.display = 'flex';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+    // 画面全体のスクロールを監視
+window.addEventListener('scroll', handleScroll);
+/**
+ * 🔝 スムーズに上に戻る
+ */
+function scrollToTop() {
+  // 画面全体を戻す
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // リスト内を戻す
+  const activePage = document.querySelector('.page.active');
+  const listView = activePage ? activePage.querySelector('[style*="overflow-y: auto"]') : null;
+  if (listView) {
+    listView.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
   
 function handleModeChange() {
   // 1. カメラ停止とUIリセット（既存の処理）
@@ -1075,13 +1122,9 @@ function handleModeChange() {
 }
   
 function handleManualUnified() { const code = document.getElementById('manualJan').value.trim(); if (code) processUnifiedFlow(code, document.getElementById('mainModeSelect').value); }
-function handleScroll() { const btn = document.getElementById('backToTop'); if (btn) btn.style.display = (window.pageYOffset > 300) ? 'flex' : 'none'; }
 
 
 
-/**
- * 🔄 ページとデータの再読み込み（最新の状態を反映）
- */
 /**
  * 🔄 ページとデータの再読み込み（モード判定を厳格化）
  */

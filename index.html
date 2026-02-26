@@ -962,52 +962,82 @@ function resetUI(shouldStopCamera = false) {
 /**
  * ページ切り替え関数 (完成形)
  */
+/**
+ * ページ切り替え関数 (修正版)
+ */
 function showPage(pageId) {
-  // 1. 安全策：カメラ停止と画面トップへ移動
-  try { stopAllCameras(); } catch(e) {}
+  // 1. まずカメラを確実に止める
+  stopAllCameras();
   scrollToTop();
 
   // 2. ページ本体の表示切り替え
+  // 一旦すべてのページを非表示にする
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   
-  // pageScan の場合は unifiedPage を表示
-  const targetId = (pageId === 'pageScan' || pageId.toLowerCase() === 'pagescan') ? 'unifiedPage' : pageId;
+  // 対象のページを表示 (pageScan の場合は実体である unifiedPage を表示)
+  const targetId = (pageId === 'pageScan' || pageId === 'pageScan') ? 'unifiedPage' : pageId;
   const targetEl = document.getElementById(targetId);
-  if (targetEl) targetEl.classList.add('active');
+  if (targetEl) {
+    targetEl.classList.add('active');
+  }
 
-  // 3. ナビゲーションの active 切り替え (onclick属性の中身で判定)
+  // 3. ナビゲーションの active 切り替え
+  // <a> や <div> 等の nav-item に対して処理
   const navs = document.querySelectorAll('.nav-item');
   navs.forEach(item => {
     item.classList.remove('active');
     const onclickText = item.getAttribute('onclick') || "";
-    // ボタンの引数に pageId が含まれていれば active にする
-    if (onclickText.includes(pageId)) {
+    // onclick="showPage('pageList')" のような文字列から判定
+    // 引数が一致しているか、または文字列として含まれているかを確認
+    if (onclickText.includes(`'${pageId}'`) || onclickText.includes(`"${pageId}"`)) {
       item.classList.add('active');
     }
   });
 
-  // 4. 各モードごとの初期化・案内処理
+  // 4. 初期表示状態の制御
   if (pageId === 'pageScan') {
-    resetUI(false);
+    // スキャンページの場合：
+    // リロード直後などは勝手にカメラを回さないよう、
+    // ここでは UIのリセット（カメラ停止状態）を優先する
+    resetUI(true); 
   } else {
-    // データが空の場合、案内メッセージを出す
+    // リスト系ページの場合：案内を出す
     const view = document.getElementById('view_' + pageId);
     if (view && (view.innerHTML === "" || view.innerHTML.includes("読み込み中"))) {
       view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">「リスト表示」ボタンを押してください</div>';
     }
   }
 
-  // 5. 【重要】現在のページIDをブラウザに保存（リフレッシュ対策）
+  // 5. 最後に現在のページを保存
   localStorage.setItem('lastPage', pageId);
 }
 
 /**
- * 補助関数：画面を一番上まで戻す
+ * 起動時の処理 (修正版)
  */
-function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: 'auto' });
-}
+window.onload = function() {
+  // 1. 前回のページを取得（なければ pageScan）
+  const lastPage = localStorage.getItem('lastPage') || 'pageScan';
+  
+  // 2. ページを表示
+  showPage(lastPage);
+  
+  // 3. 【重要】スキャンページだった場合、勝手にカメラが回らないよう念押しで停止
+  if (lastPage === 'pageScan') {
+    resetUI(true); 
+  }
+};
 
+/**
+ * 画面を一番上まで戻す
+ * behavior を引数で選べるようにしておくと便利です
+ */
+function scrollToTop(isSmooth = false) {
+  window.scrollTo({ 
+    top: 0, 
+    behavior: isSmooth ? 'smooth' : 'auto' 
+  });
+}
 /**
  * 起動時の処理
  */
@@ -1042,7 +1072,7 @@ function handleModeChange() {
   
 function handleManualUnified() { const code = document.getElementById('manualJan').value.trim(); if (code) processUnifiedFlow(code, document.getElementById('mainModeSelect').value); }
 function handleScroll() { const btn = document.getElementById('backToTop'); if (btn) btn.style.display = (window.pageYOffset > 300) ? 'flex' : 'none'; }
-function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
 
 
 /**

@@ -1013,18 +1013,19 @@ function showPage(pageId) {
 }
 
 /**
- * 起動時の処理 (修正版)
+ * 起動時の処理（決定版：1つに統合）
  */
 window.onload = function() {
-  // 1. 前回のページを取得（なければ pageScan）
+  // 1. 保存されていたページIDを取得
   const lastPage = localStorage.getItem('lastPage') || 'pageScan';
   
-  // 2. ページを表示
-  showPage(lastPage);
-  
-  // 3. 【重要】スキャンページだった場合、勝手にカメラが回らないよう念押しで停止
+  // 2. ページを表示・復元
   if (lastPage === 'pageScan') {
-    resetUI(true); 
+    // スキャンページならそのまま表示（resetUIはshowPageの中で実行される）
+    showPage('pageScan');
+  } else {
+    // リストページなら、データを自動で読み込みつつ表示
+    refreshPage(lastPage);
   }
 };
 
@@ -1038,14 +1039,7 @@ function scrollToTop(isSmooth = false) {
     behavior: isSmooth ? 'smooth' : 'auto' 
   });
 }
-/**
- * 起動時の処理
- */
-window.onload = function() {
-  // 保存されていたページがあれば復元、なければスキャンページを表示
-  const lastPage = localStorage.getItem('lastPage') || 'pageScan';
-  showPage(lastPage);
-};
+
   
 function handleModeChange() {
   // 1. カメラ停止とUIリセット（既存の処理）

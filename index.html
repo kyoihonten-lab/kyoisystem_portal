@@ -1066,7 +1066,8 @@ async function refreshPage(pageId) {
   const originalText = (pageId === 'pageAll') ? "全店舗リスト表示" : 
                        (pageId === 'pageList') ? "期限チェック表示" : "リスト表示";
 
-  // モードガード（期限管理のみ）
+// --- 【重要】期限管理関連ページのガード ---
+  // 1. 期限チェック（pageList）のガード
   if (pageId === 'pageList' && mode !== 'scan') {
     if (targetView) {
       targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてから実行してください</div>';
@@ -1074,6 +1075,14 @@ async function refreshPage(pageId) {
     return;
   }
 
+  // ★ 追加：2. 全店在庫照会（pageAll）が期限管理モード以外で押された時のガード
+  if (pageId === 'pageAll' && mode !== 'scan') {
+    if (targetView) {
+      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モードに切り替えてから実行してください<br><span style="font-size:0.8em;font-weight:normal;">(全店在庫は期限管理データから抽出します)</span></div>';
+    }
+    return;
+  }
+  
   // ボタンを「更新中」状態にロック
   if (targetBtn) {
     targetBtn.disabled = true;
@@ -1124,7 +1133,7 @@ async function refreshPage(pageId) {
   } finally {
     resetBtn();
   }
-}
+
   
 function showAlertList() {
   const shopCode = document.getElementById('shopInput').value;

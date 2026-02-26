@@ -69,6 +69,8 @@
     overflow: hidden; 
     margin: 0; 
     display: block;
+    /* z-indexをヘッダー(195〜200)より低く設定して、下をくぐるようにする */
+  　z-index: 1;
     /* iPhoneの描画バグを防ぐおまじない */
     transform: translateZ(0);
   }

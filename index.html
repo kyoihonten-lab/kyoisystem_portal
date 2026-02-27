@@ -197,11 +197,13 @@ button:disabled {
   background-color: #fff;
 }
 
-/* --- 3. データ行の罫線設定（15px 12pxを維持） --- */
+/* --- 3. データ行の罫線とパディング（折り返し対策） --- */
 .list-table td { 
-  padding: 15px 12px !important; 
+  /* 上下は15pxを維持してゆったり、左右を8pxに絞って日付の幅を確保 */
+  padding: 15px 8px !important; 
   border-bottom: 1px solid #ddd !important;
   vertical-align: top; 
+  word-wrap: break-word;
   background-color: #ffffff;
   box-sizing: border-box;
 }
@@ -229,9 +231,9 @@ button:disabled {
 }
   /* 列の幅固定 (10:22:48:20) */
   .col-check { width: 10%; text-align: center; }
-  .col-info1 { width: 22%; }
+  .col-info1 { width: 24%; }
   .col-info2 { width: 48%; }
-  .col-info3 { width: 20%; }
+  .col-info3 { width: 18%; }
 
   /* 1行目のセルの上に線が出ないように調整（二重線を防ぐ） */
 .list-table tbody tr:first-child td {

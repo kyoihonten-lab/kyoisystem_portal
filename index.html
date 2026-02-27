@@ -188,12 +188,25 @@ button:disabled {
 
 /* --- 共通のヘッダーデザイン（.cool-header） --- */
 /* --- テーブル全体の基本設定 --- */
-  .list-table { 
-    width: 100%; 
-    border-collapse: collapse; /* セル同士の隙間をなくして線を1本にする */
-    background: #fff; 
-    table-layout: fixed; 
+
+  .list-table { width: 100%; 
+               border-collapse: collapse;
+               table-layout: fixed;
+               background: #fff; }
+
+    /* --- データ行の罫線設定 --- */
+  .list-table td { 
+    padding: 15px 12px; 
+    border-bottom: 1px solid #ddd; /* ★ここが罫線です。少し濃いめのグレーに変更 */
+    vertical-align: top; 
+    word-wrap: break-word;
+    background-color: #ffffff;
   }
+
+  .list-table td { border-bottom: 1px solid #ddd;
+                  padding: 15px 12px;
+                  vertical-align: top;
+                 }
 
   /* --- ヘッダー（昨日の修正を含む） --- */
   .cool-header th { 
@@ -208,14 +221,6 @@ button:disabled {
     border-bottom: 2px solid #2c3e50; /* ヘッダー下の太線 */
   }
 
-  /* --- データ行の罫線設定 --- */
-  .list-table td { 
-    padding: 12px 8px; 
-    border-bottom: 1px solid #ddd; /* ★ここが罫線です。少し濃いめのグレーに変更 */
-    vertical-align: top; 
-    word-wrap: break-word;
-    background-color: #ffffff;
-  }
 
   /* 列の幅固定 (10:22:48:20) */
   .col-check { width: 10%; text-align: center; }
@@ -250,7 +255,15 @@ button:disabled {
   color: white;
   box-shadow: 0 2px 2px rgba(0,0,0,0.1);
 }
-  
+
+  /* --- 期限当日以前（danger）のスタイル --- */
+  tr.danger { background-color: #fff5f5 !important; }
+  tr.danger td { color: #e74c3c !important; } /* 文字も赤にする */
+  /* 商品名などの太字部分も強制的に赤へ */
+  tr.danger .item-name-text { color: #e74c3c !important; }
+
+  /* --- 在庫バッジの初期状態（全店在庫用） --- */
+  .stock-badge.hidden-initial { display: none; } /* 初期は非表示 */
   /* 共通パーツ */
   #backToTop { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: rgba(52, 152, 219, 0.8); color: white; border-radius: 50%; border: none; font-size: 1.5em; display: none; z-index: 2500; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 </style>
@@ -884,16 +897,17 @@ function getTableHeaderByMode(mode, pageId) {
 }
 
 /**
- * 📋 データ行生成 (店情報2行化 & 罫線対応)
- */
-/**
- * 📋 データ行（TR）生成
- * 店名2行化 ＆ 比率維持 ＆ 罫線対応
+ * 📊 モード別行HTML生成 (全文)
+ * 1. 店名2行表示
+ * 2. 期限切れ: セル塗りつぶし＋文字も赤
+ * 3. 全店在庫: 初期は非表示(hidden-initial)、取得ボタンで表示
+ * 4. フォントサイズ: 期限0.75em, 商品0.8em, 数0.9em
  */
 function getRowHtmlByMode(mode, item, pageId) {
+  // チェックボックス（共通）
   const checkbox = `<td class="col-check"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}"></td>`;
   
-  // 【復元】店情報を2行で表示
+  // 店情報を2行で構成
   let shopHeader = "";
   if (item.shopCode || item.shopName) {
     shopHeader = `
@@ -901,58 +915,73 @@ function getRowHtmlByMode(mode, item, pageId) {
       <div class="shop-label-name">${item.shopName || ''}</div>`;
   }
 
+  // 期限/状況・商品・数の各列に対するご指定のフォントサイズ
+  const fSize1 = "font-size: 0.75em;"; // 期限
+  const fSize2 = "font-size: 0.80em;"; // 商品情報
+  const fSize3 = "font-size: 0.90em;"; // 数・価格
+
   if (mode === 'scan' || mode === 'stockAll') {
-    // 期限切れチェック
+    // 期限切れ・当日チェック
     const today = new Date(); today.setHours(0,0,0,0);
     const dateStr = item.expiry || "";
     const expiryDate = new Date(dateStr.replace(/\//g, '-'));
     const isExpired = (dateStr && !isNaN(expiryDate) && expiryDate <= today);
 
-    const stockDisp = (pageId === 'pageAll') ? 
-      `<div class="stock-badge stock-val" data-id="${item.recordId}">-</div>` : "";
+    // 期限切れなら文字色を赤(#e74c3c)に、そうでなければ標準色
+    const highlightColor = isExpired ? "#e74c3c" : "#2c3e50";
+
+    // 理論在庫の表示制御
+    // 全店在庫(pageAll)リストの場合のみ 'hidden-initial' クラスを付けて初期非表示にする
+    let stockClass = "stock-badge stock-val";
+    if (pageId === 'pageAll') {
+      stockClass += " hidden-initial";
+    }
+
+    // 在庫バッジの生成（全店在庫リスト、またはモードがstockAllの時）
+    const stockDisp = (mode === 'stockAll' || pageId === 'pageAll') ? 
+      `<div class="${stockClass}" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">-</div>` : "";
 
     return `
-      <tr style="${isExpired ? 'background-color:#fff5f5;' : ''}">
+      <tr class="${isExpired ? 'danger' : ''}">
         ${checkbox}
-        <td class="col-info1">
+        <td class="col-info1" style="${fSize1}">
           ${shopHeader}
-          <div style="color:${isExpired ? '#e74c3c' : '#2c3e50'}; font-weight:bold;">${dateStr}</div>
+          <div style="color:${highlightColor}; font-weight:bold;">${dateStr}</div>
         </td>
-        <td class="col-info2">
-          <div style="font-size:0.8em; color:#7f8c8d;">${item.barcode}</div>
-          <div style="font-weight:bold; line-height:1.2;">${item.itemName || item.name}</div>
+        <td class="col-info2" style="${fSize2}">
+          <div style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
+          <div style="font-weight:bold; line-height:1.2; color:${highlightColor};">${item.itemName || item.name}</div>
           ${stockDisp}
         </td>
-        <td class="col-info3" style="text-align:center;">
+        <td class="col-info3" style="text-align:center; ${fSize3}">
           <div onclick="openQtyModal('${item.recordId}', '${(item.itemName || item.name).replace(/'/g, "\\'")}', ${item.qty})" 
-               style="display:inline-block; width:55px; height:35px; line-height:35px; border:1px solid #3498db; border-radius:4px; font-weight:bold; background:#fff;">
+               style="display:inline-block; width:55px; height:35px; line-height:35px; border:1px solid #3498db; border-radius:4px; font-weight:bold; background:#fff; color:#333;">
             <span id="qty-val-${item.recordId}">${item.qty}</span>
           </div>
         </td>
       </tr>`;
 
   } else if (mode === 'search') {
-    // 検索モード
+    // 検索・価格チェックモード
     const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
     return `
       <tr>
         ${checkbox}
-        <td class="col-info1">
+        <td class="col-info1" style="${fSize1}">
           ${shopHeader}
           <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
         </td>
-        <td class="col-info2">
-          <div style="font-size:0.8em; color:#7f8c8d;">${item.barcode}</div>
+        <td class="col-info2" style="${fSize2}">
+          <div style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
           <div style="font-weight:bold; line-height:1.2;">${item.itemName || item.name}</div>
         </td>
-        <td class="col-info3" style="text-align:right; padding-right:10px; color:#e67e22; font-weight:bold;">
+        <td class="col-info3" style="text-align:right; padding-right:10px; color:#e67e22; font-weight:bold; ${fSize3}">
           ${priceDisp}
         </td>
       </tr>`;
   }
   return "";
 }
-
   
 async function bulkDelete(pageId) {
   const btn = document.getElementById(`btnComplete_${pageId}`);
@@ -1318,40 +1347,48 @@ function loadAllProducts() {
  * 🌍 全店舗リスト用：チェックした商品の理論在庫を一括取得して表示
  * 取得開始時にチェックを自動で外すように改良
  */
-async function fetchSelectedStocks() {
-  const checks = document.querySelectorAll('#view_pageAll .bulk-check:checked');
+
+async function fetchSelectedStocks(pageId) {
+  const page = document.getElementById(pageId);
+  const checks = page.querySelectorAll('.bulk-check:checked');
   if (checks.length === 0) return alert("在庫を確認する商品を選択してください");
 
-  // ボタンを「確認中」にする
-  const btn = document.getElementById('btnStockAll');
-  const originalText = "チェック商品在庫確認";
+  // ボタンを「確認中」にする（pageId内の特定のボタン、または共通ボタン）
+  const btn = page.querySelector('button[onclick*="fetchSelectedStocks"]') || document.getElementById('btnStockAll');
+  const originalText = btn ? btn.innerText : "チェック商品在庫確認";
+  
   if (btn) {
     btn.disabled = true;
     btn.innerText = "在庫照会中...";
     btn.style.opacity = "0.5";
   }
 
-  // 1. チェックされた行から情報を抽出
+  // 1. チェックされた行から情報を抽出（昨日の効率化ロジック）
   const targets = Array.from(checks).map(c => ({
     barcode: c.getAttribute('data-jan'),
     shopCode: c.getAttribute('data-shop'),
     recordId: c.getAttribute('data-id')
   }));
 
-  // ★ 2. 処理が走り出したらチェックを外す
+  // ★昨日の改善：処理が走り出したらチェックを外す
   checks.forEach(c => { c.checked = false; });
+  // 全選択チェックボックスも外す
+  const selectAll = document.getElementById(`selectAll_${pageId}`);
+  if (selectAll) selectAll.checked = false;
 
   try {
-    // GASに一括問い合わせ
+    // 昨日の進化：GASに一括問い合わせ（1回の通信で済む）
     const results = await callGAS("getBulkStocks", { targets });
     
     if (results && typeof results === 'object') {
       // 取得した在庫数を各行のバッジに反映
       targets.forEach(t => {
-        const badge = document.querySelector(`.stock-val[data-id="${t.recordId}"]`);
+        const badge = page.querySelector(`.stock-val[data-id="${t.recordId}"]`);
         if (badge) {
           const stock = results[t.recordId] !== undefined ? results[t.recordId] : "不明";
           badge.innerText = "理論在庫: " + stock;
+          
+          // 今日のご要望：ここで初めて「表示」させる
           badge.style.display = "inline-block"; 
         }
       });
@@ -1369,7 +1406,6 @@ async function fetchSelectedStocks() {
     }
   }
 }
-
 // 現在の editQty をこれに丸ごと差し替え
 async function editQty(recordId, oldQty) {
   const parentRow = document.getElementById(`qty-val-${recordId}`).closest('tr');

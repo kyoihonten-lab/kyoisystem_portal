@@ -197,36 +197,27 @@ button:disabled {
   background-color: #fff;
 }
 
-/* --- 3. データ行の罫線とパディング（折り返し対策） --- */
+/* --- 3. データ行：パディングを絞り、日付の折り返しを阻止 --- */
 .list-table td { 
-  /* 上下は15pxを維持してゆったり、左右を8pxに絞って日付の幅を確保 */
-  padding: 15px 8px !important; 
+  padding: 15px 4px !important; /* 左右パディングを4pxまで絞る */
   border-bottom: 1px solid #ddd !important;
   vertical-align: top; 
-  word-wrap: break-word;
   background-color: #ffffff;
   box-sizing: border-box;
+  overflow: hidden; /* はみ出し防止 */
 }
-
-/* --- 2. 既存の cool-header を最優先（隙間対策版） --- */
 .cool-header th { 
   background-color: #34495e !important; 
   color: white !important; 
-  padding: 12px 4px !important; 
+  padding: 12px 2px !important; /* 左右を2pxに */
   font-size: 0.85em !important; 
-  text-align: center !important; 
-  
-  /* 固定（sticky）位置の調整 */
   position: -webkit-sticky;
   position: sticky;
-  /* メインヘッダー(45px) + 店コードエリア(55px) = 100px */
-  /* もし店コードエリアも固定されているなら 100px、そうでなければ 45px */
   top: 0; 
   z-index: 100;
-
-  /* 隙間を埋めるための処理：上下に境界線を明示 */
-  border-top: 1px solid #34495e !important; /* 背景と同色で上の隙間を埋める */
-  border-bottom: 2px solid #2c3e50 !important; /* ヘッダー下の太線 */
+  /* 上下の隙間を同色ボーダーで塗りつぶす */
+  border-top: 1px solid #34495e !important;
+  border-bottom: 2px solid #2c3e50 !important;
   box-sizing: border-box;
 }
   /* 列の幅固定 (10:22:48:20) */
@@ -790,7 +781,8 @@ function renderList(pageId, list) {
     stockBtn.style.display = (pageId === 'pageAll' && (mode === 'scan' || mode === 'stockAll')) ? 'block' : 'none';
   }
 
-  let html = `<table class="list-table" style="width: 100%; border-collapse: separate; margin: 0; table-layout: fixed;">
+  // テーブル生成：余計なインラインスタイルを排除し CSS に任せる
+  let html = `<table class="list-table">
                 ${getTableHeaderByMode(mode, pageId)}
                 <tbody>`;
   
@@ -800,17 +792,9 @@ function renderList(pageId, list) {
   
   html += `</tbody></table>`;
 
-  // スクロールコンテナの設定を強化
-view.innerHTML = `
-    <div style="position: relative; max-height: 70vh; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
-      ${html}
-    </div>`;
-
-  // ★ここを追加：新しく作られた div のスクロールも監視する
-  const newDiv = view.querySelector('div');
-  if (newDiv) {
-    newDiv.addEventListener('scroll', handleScroll);
-  }
+  // 【重要】overflow 設定のある div で囲わず、直接 HTML を入れます。
+  // これにより sticky がボディ全体に対して効くようになります。
+  view.innerHTML = html;
 }
 
 /**

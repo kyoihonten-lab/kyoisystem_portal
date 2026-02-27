@@ -190,19 +190,21 @@ button:disabled {
 /* --- テーブル全体の基本設定 --- */
 
   .list-table { width: 100%; 
-               border-collapse: collapse;
+               border-collapse: collapse !important;
                table-layout: fixed;
                background: #fff; }
 
     /* --- データ行の罫線設定 --- */
   .list-table td { 
     padding: 15px 12px; 
-    border-bottom: 1px solid #ddd; /* ★ここが罫線です。少し濃いめのグレーに変更 */
+    border-bottom: 1px solid #ddd !important; /* ★ここが罫線です。少し濃いめのグレーに変更 */
     vertical-align: top; 
     word-wrap: break-word;
     background-color: #ffffff;
   }
-
+  .list-table tr {
+  border-bottom: 1px solid #ccc;
+}
   /* --- ヘッダー（昨日の修正を含む） --- */
   .cool-header th { 
     background-color: #34495e !important; 
@@ -215,7 +217,6 @@ button:disabled {
     z-index: 10;
     border-bottom: 2px solid #2c3e50; /* ヘッダー下の太線 */
   }
-
 
   /* 列の幅固定 (10:22:48:20) */
   .col-check { width: 10%; text-align: center; }

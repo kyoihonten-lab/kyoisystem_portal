@@ -259,6 +259,10 @@ button:disabled {
 
   /* --- 在庫バッジの初期状態（全店在庫用） --- */
   .stock-badge.hidden-initial { display: none; } /* 初期は非表示 */
+  /* これを追加するだけ（既存の .stock-badge は変更不要） */
+#pageAll .stock-val { display: none; }
+
+  
   /* 共通パーツ */
   #backToTop { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: rgba(52, 152, 219, 0.8); color: white; border-radius: 50%; border: none; font-size: 1.5em; display: none; z-index: 2500; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 </style>
@@ -1343,56 +1347,42 @@ function loadAllProducts() {
  * 取得開始時にチェックを自動で外すように改良
  */
 
-async function fetchSelectedStocks(pageId) {
-  // もし引数が空（ボタンのonclickから呼ばれた場合など）は、
-  // デフォルトで全店在庫ページ(pageAll)を対象にする
-  const targetPageId = pageId || 'pageAll';
-  const page = document.getElementById(targetPageId);
-  
-  if (!page) {
-    console.error("対象のページが見つかりません:", targetPageId);
-    return;
-  }
-
-  const checks = page.querySelectorAll('.bulk-check:checked');
+/**
+ * 📦 選択した商品の在庫を一括取得する関数
+ * ※関数名は変更せず、中身の処理（一括取得・チェック解除）も維持しています
+ */
+async function fetchSelectedStocks() {
+  // 既存の取得先セレクタを維持
+  const checks = document.querySelectorAll('#pageAll .bulk-check:checked');
   if (checks.length === 0) return alert("在庫を確認する商品を選択してください");
 
-  // ボタンを「確認中」にする
-  // page内のボタン、またはID指定のボタンを探す
-  const btn = page.querySelector('button[onclick*="fetchSelectedStocks"]') || document.getElementById('btnStockAll');
-  const originalText = btn ? btn.innerText : "チェック商品在庫確認";
-  
+  const btn = document.getElementById('btnStockAll');
+  const originalText = "チェック商品在庫確認";
   if (btn) {
     btn.disabled = true;
     btn.innerText = "在庫照会中...";
     btn.style.opacity = "0.5";
   }
 
-  // 1. チェックされた行から情報を抽出（昨日の効率化ロジックを維持）
   const targets = Array.from(checks).map(c => ({
     barcode: c.getAttribute('data-jan'),
     shopCode: c.getAttribute('data-shop'),
     recordId: c.getAttribute('data-id')
   }));
 
-  // ★昨日の改善：処理が走り出したらチェックを外す
   checks.forEach(c => { c.checked = false; });
-  const selectAll = document.getElementById(`selectAll_${targetPageId}`);
-  if (selectAll) selectAll.checked = false;
 
   try {
-    // 昨日の進化：GASに一括問い合わせ
     const results = await callGAS("getBulkStocks", { targets });
     
     if (results && typeof results === 'object') {
-      // 取得した在庫数を各行のバッジに反映
       targets.forEach(t => {
-        const badge = page.querySelector(`.stock-val[data-id="${t.recordId}"]`);
+        const badge = document.querySelector(`.stock-val[data-id="${t.recordId}"]`);
         if (badge) {
           const stock = results[t.recordId] !== undefined ? results[t.recordId] : "不明";
           badge.innerText = "理論在庫: " + stock;
           
-          // 今日のご要望：取得後に初めて表示させる
+          // 【追加機能】取得が完了したタイミングで表示をONにする
           badge.style.display = "inline-block"; 
         }
       });
@@ -1410,6 +1400,7 @@ async function fetchSelectedStocks(pageId) {
     }
   }
 }
+  
 // 現在の editQty をこれに丸ごと差し替え
 async function editQty(recordId, oldQty) {
   const parentRow = document.getElementById(`qty-val-${recordId}`).closest('tr');

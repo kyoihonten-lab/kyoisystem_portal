@@ -236,10 +236,11 @@ button:disabled {
   .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75em; color: #7f8c8d; text-decoration: none; }
   .nav-item.active { color: #3498db; font-weight: bold; }
 
-  /* 全店在庫テーブルのヘッダー固定 */
+  /* 1. 全店在庫詳細エリアのテーブル設定を修正 */
 #stockAllDetailArea table {
-  border-collapse: separate;
+  border-collapse: collapse !important; /* separate から collapse に変更 */
   border-spacing: 0;
+  width: 100%;
 }
 
 #stockAllDetailArea thead th {

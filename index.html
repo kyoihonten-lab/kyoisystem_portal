@@ -189,34 +189,45 @@ button:disabled {
 /* --- 共通のヘッダーデザイン（.cool-header） --- */
 /* --- テーブル全体の基本設定 --- */
 
-  .list-table { width: 100%; 
-               border-collapse: collapse !important;
-               table-layout: fixed;
-               background: #fff; }
-
-    /* --- データ行の罫線設定 --- */
-  .list-table td { 
-    padding: 15px 12px; 
-    border-bottom: 1px solid #ddd !important; /* ★ここが罫線です。少し濃いめのグレーに変更 */
-    vertical-align: top; 
-    word-wrap: break-word;
-    background-color: #ffffff;
-  }
-  .list-table tr {
-  border-bottom: 1px solid #ccc;
+.list-table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  table-layout: fixed;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #fff;
 }
-  /* --- ヘッダー（昨日の修正を含む） --- */
-  .cool-header th { 
-    background-color: #34495e !important; 
-    color: white !important; 
-    padding: 12px 4px; 
-    font-size: 0.85em; 
-    text-align: center !important; 
-    position: sticky; 
-    top: 0; 
-    z-index: 10;
-    border-bottom: 2px solid #2c3e50; /* ヘッダー下の太線 */
-  }
+
+/* --- 3. データ行の罫線設定 --- */
+.list-table td { 
+  padding: 15px 12px !important; /* ゆったり余白を優先 */
+  border-bottom: 1px solid #ddd !important; /* 濃いめのグレー罫線 */
+  vertical-align: top; 
+  word-wrap: break-word;
+  background-color: #ffffff;
+  box-sizing: border-box; /* ヘッダーと幅を一致させる */
+}
+
+/* --- 2. ヘッダーデザイン（.cool-header を優先） --- */
+.cool-header th { 
+  background-color: #34495e !important; 
+  color: white !important; 
+  padding: 12px 4px !important; 
+  font-size: 0.85em !important; 
+  text-align: center !important; 
+  
+  /* 固定（sticky）設定 */
+  position: -webkit-sticky;
+  position: sticky;
+  /* メインヘッダー(45px) + 店コードエリア(55px) の下に固定する場合、topは100px */
+  top: 0; 
+  z-index: 100;
+  
+  /* 下の隙間を埋めるための境界線設定 */
+  border-bottom: 2px solid #2c3e50 !important; 
+  box-sizing: border-box;
+}
 
   /* 列の幅固定 (10:22:48:20) */
   .col-check { width: 10%; text-align: center; }
@@ -774,7 +785,7 @@ function renderList(pageId, list) {
     stockBtn.style.display = (pageId === 'pageAll' && (mode === 'scan' || mode === 'stockAll')) ? 'block' : 'none';
   }
 
-  let html = `<table class="list-table" style="width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed;">
+  let html = `<table class="list-table" style="width: 100%; border-collapse: separate; margin: 0; table-layout: fixed;">
                 ${getTableHeaderByMode(mode, pageId)}
                 <tbody>`;
   
@@ -821,77 +832,37 @@ function sortListByMode(pageId, list, mode) {
   }
 }
   
-
 /**
- * 📊 モードによってヘッダーの文言を完全に切り替える関数
- * カッコの閉じ忘れ（Syntax Error）をすべて修正しました。
+ * 📊 ヘッダー生成 (出し分け・中央揃え完全版)
  */
 function getTableHeaderByMode(mode, pageId) {
-  // 1. 全モード共通：一括チェックボックス列 (幅10%はCSSの.col-checkで制御)
+  // 1. 全モード共通：一括チェックボックス列
   const selectHeader = `
-    <th class="col-check">
+    <th class="col-check" style="text-align: center; vertical-align: middle;">
       一括<br>
       <input type="checkbox" id="selectAll_${pageId}" onclick="toggleAllChecks(this, '${pageId}')" style="width:18px; height:18px;">
     </th>`;
 
-  // 2. モードによる条件分岐
   if (mode === 'scan' || mode === 'stockAll') {
     // 【スキャン・全店在庫モード】
     return `
       <thead class="cool-header">
         <tr>
           ${selectHeader}
-          <th class="col-info1">期限</th>
-          <th class="col-info2">商品情報</th>
-          <th class="col-info3">数</th>
+          <th class="col-info1" style="text-align: center;">期限</th>
+          <th class="col-info2" style="text-align: center;">商品情報</th>
+          <th class="col-info3" style="text-align: center;">数</th>
         </tr>
       </thead>`;
   } else {
-    // 【検索・EC在庫モード】
-    // ここで「EC在庫状況」と「EC価格」を確実に出し分けます
+    // 【検索/ECモード】「EC在庫状況」「EC価格」を表示
     return `
       <thead class="cool-header">
         <tr>
           ${selectHeader}
-          <th class="col-info1">EC在庫状況</th>
-          <th class="col-info2">商品情報</th>
-          <th class="col-info3">EC価格</th>
-        </tr>
-      </thead>`;
-  }
-}
-  
-
-/**
- * 📊 ヘッダー生成 (出し分け・中央揃え完全版)
- */
-function getTableHeaderByMode(mode, pageId) {
-  const selectHeader = `
-    <th class="col-check">
-      一括<br>
-      <input type="checkbox" id="selectAll_${pageId}" onclick="toggleAllChecks(this, '${pageId}')" style="width:18px; height:18px;">
-    </th>`;
-
-  if (mode === 'scan' || mode === 'stockAll') {
-    // 【通常モード】
-    return `
-      <thead class="cool-header">
-        <tr>
-          ${selectHeader}
-          <th class="col-info1">期限</th>
-          <th class="col-info2">商品情報</th>
-          <th class="col-info3">数</th>
-        </tr>
-      </thead>`;
-  } else {
-    // 【検索/ECモード】elseを削らず「EC在庫状況」「EC価格」を表示
-    return `
-      <thead class="cool-header">
-        <tr>
-          ${selectHeader}
-          <th class="col-info1">EC在庫状況</th>
-          <th class="col-info2">商品情報</th>
-          <th class="col-info3">EC価格</th>
+          <th class="col-info1" style="text-align: center;">EC在庫状況</th>
+          <th class="col-info2" style="text-align: center;">商品情報</th>
+          <th class="col-info3" style="text-align: center;">EC価格</th>
         </tr>
       </thead>`;
   }

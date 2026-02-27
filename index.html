@@ -774,7 +774,7 @@ function renderList(pageId, list) {
     stockBtn.style.display = (pageId === 'pageAll' && (mode === 'scan' || mode === 'stockAll')) ? 'block' : 'none';
   }
 
-  let html = `<table style="width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed;">
+  let html = `<table class="list-table" style="width: 100%; border-collapse: collapse; margin: 0; table-layout: fixed;">
                 ${getTableHeaderByMode(mode, pageId)}
                 <tbody>`;
   
@@ -899,14 +899,10 @@ function getTableHeaderByMode(mode, pageId) {
 
 /**
  * 📊 モード別行HTML生成 (全文)
- * 1. 店名2行表示
- * 2. 期限切れ: セル塗りつぶし＋文字も赤
- * 3. 全店在庫: 初期は非表示(hidden-initial)、取得ボタンで表示
- * 4. フォントサイズ: 期限0.75em, 商品0.8em, 数0.9em
  */
 function getRowHtmlByMode(mode, item, pageId) {
   // チェックボックス（共通）
-  const checkbox = `<td class="col-check"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}"></td>`;
+  const checkbox = `<td class="col-check" style="border-bottom: 1px solid #ddd;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}"></td>`;
   
   // 店情報を2行で構成
   let shopHeader = "";
@@ -916,45 +912,45 @@ function getRowHtmlByMode(mode, item, pageId) {
       <div class="shop-label-name">${item.shopName || ''}</div>`;
   }
 
-  // 期限/状況・商品・数の各列に対するご指定のフォントサイズ
+  // ご指定のフォントサイズ
   const fSize1 = "font-size: 0.75em;"; // 期限
   const fSize2 = "font-size: 0.80em;"; // 商品情報
   const fSize3 = "font-size: 0.90em;"; // 数・価格
 
+  // 共通の罫線スタイル
+  const borderStyle = "border-bottom: 1px solid #ddd;";
+
   if (mode === 'scan' || mode === 'stockAll') {
-    // 期限切れ・当日チェック
     const today = new Date(); today.setHours(0,0,0,0);
     const dateStr = item.expiry || "";
     const expiryDate = new Date(dateStr.replace(/\//g, '-'));
     const isExpired = (dateStr && !isNaN(expiryDate) && expiryDate <= today);
 
-    // 期限切れなら文字色を赤(#e74c3c)に、そうでなければ標準色
+    // 期限切れなら文字も赤に
     const highlightColor = isExpired ? "#e74c3c" : "#2c3e50";
 
-    // 理論在庫の表示制御
-    // 全店在庫(pageAll)リストの場合のみ 'hidden-initial' クラスを付けて初期非表示にする
+    // 理論在庫の表示制御 (hidden-initial)
     let stockClass = "stock-badge stock-val";
     if (pageId === 'pageAll') {
       stockClass += " hidden-initial";
     }
 
-    // 在庫バッジの生成（全店在庫リスト、またはモードがstockAllの時）
     const stockDisp = (mode === 'stockAll' || pageId === 'pageAll') ? 
       `<div class="${stockClass}" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">-</div>` : "";
 
     return `
       <tr class="${isExpired ? 'danger' : ''}">
         ${checkbox}
-        <td class="col-info1" style="${fSize1}">
+        <td class="col-info1" style="${fSize1} ${borderStyle}">
           ${shopHeader}
           <div style="color:${highlightColor}; font-weight:bold;">${dateStr}</div>
         </td>
-        <td class="col-info2" style="${fSize2}">
+        <td class="col-info2" style="${fSize2} ${borderStyle}">
           <div style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
-          <div style="font-weight:bold; line-height:1.2; color:${highlightColor};">${item.itemName || item.name}</div>
+          <div class="item-name-text" style="font-weight:bold; line-height:1.2; color:${highlightColor};">${item.itemName || item.name}</div>
           ${stockDisp}
         </td>
-        <td class="col-info3" style="text-align:center; ${fSize3}">
+        <td class="col-info3" style="text-align:center; ${fSize3} ${borderStyle}">
           <div onclick="openQtyModal('${item.recordId}', '${(item.itemName || item.name).replace(/'/g, "\\'")}', ${item.qty})" 
                style="display:inline-block; width:55px; height:35px; line-height:35px; border:1px solid #3498db; border-radius:4px; font-weight:bold; background:#fff; color:#333;">
             <span id="qty-val-${item.recordId}">${item.qty}</span>
@@ -963,20 +959,19 @@ function getRowHtmlByMode(mode, item, pageId) {
       </tr>`;
 
   } else if (mode === 'search') {
-    // 検索・価格チェックモード
     const priceDisp = item.price ? `¥${Number(item.price).toLocaleString()}` : "---";
     return `
       <tr>
         ${checkbox}
-        <td class="col-info1" style="${fSize1}">
+        <td class="col-info1" style="${fSize1} ${borderStyle}">
           ${shopHeader}
           <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
         </td>
-        <td class="col-info2" style="${fSize2}">
+        <td class="col-info2" style="${fSize2} ${borderStyle}">
           <div style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
           <div style="font-weight:bold; line-height:1.2;">${item.itemName || item.name}</div>
         </td>
-        <td class="col-info3" style="text-align:right; padding-right:10px; color:#e67e22; font-weight:bold; ${fSize3}">
+        <td class="col-info3" style="text-align:right; padding-right:10px; color:#e67e22; font-weight:bold; ${fSize3} ${borderStyle}">
           ${priceDisp}
         </td>
       </tr>`;

@@ -1474,35 +1474,46 @@ function toggleAllChecks(source, pageId) {
 }
 
 /**
- * 全店在庫の結果を画面に表示 (JS)
+ * 全店在庫の結果を画面に表示 (修正版)
  */
 function showAllStoreStock(response) {
   const tbody = document.getElementById('stockAllTableBody');
   const nameDisplay = document.getElementById('sStockName');
   const janHeader = document.getElementById('sStockJanHeader');
   
-  // 1. ヘッダー情報のセット
-  nameDisplay.innerText = "📦 " + (response.itemName || "商品名不明");
-  janHeader.innerText = "JAN: " + (response.janCode || currentCode);
-  
-  tbody.innerHTML = ""; 
+  // 1. 【重要】通信前に表示をリセット（currentCode を即座に反映）
+  // ※この関数が「通信開始時」にも呼ばれるように構成するか、
+  // 通信開始直後に以下の3行だけ先に実行するようにすると、前の商品が残りません。
+  nameDisplay.innerText = "📦 " + (response.itemName || "照会中...");
+  janHeader.innerHTML = `
+    <div>JAN: ${response.janCode || currentCode}</div>
+    <div id="totalStockDisplay" style="font-size: 1.1em; color: #e67e22; font-weight: bold; margin-top: 5px;">
+      照会中...
+    </div>
+  `;
+  tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center;"><div class="loading-spinner"></div><br>データを取得中...</td></tr>';
 
+  // データがない場合はここで終了
   if (!response.stocks || response.stocks.length === 0) {
     tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫のある店舗は見つかりませんでした</td></tr>';
+    document.getElementById('totalStockDisplay').innerText = "全店総在庫: 0";
     return;
   }
 
-  // 2. 在庫リストの生成
-response.stocks.forEach(row => {
+  // 2. 【新機能】全店総在庫の計算
+  const totalStock = response.stocks.reduce((sum, row) => sum + Number(row.stock || 0), 0);
+  document.getElementById('totalStockDisplay').innerText = "全店総在庫: " + totalStock.toLocaleString();
+
+  // 3. 在庫リストの生成
+  tbody.innerHTML = ""; // 照会中メッセージをクリア
+  response.stocks.forEach(row => {
     const tr = document.createElement('tr');
     
-    // 在庫数による色分け設定
     const stockVal = Number(row.stock);
     let stockColor = "#2980b9"; 
     if (stockVal < 0) stockColor = "#e74c3c";
     if (stockVal === 0) stockColor = "#95a5a6";
 
-    // 店コードと店名の分離
     const sInfo = row.shopInfo.split(" ");
     const shopCode = sInfo[0];
     const shopName = sInfo.slice(1).join(" ");
@@ -1510,11 +1521,11 @@ response.stocks.forEach(row => {
     tr.innerHTML = `
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
         <div style="font-weight:bold; color:#2c3e50; font-size:1.0em;">${shopCode}</div>
-        <div style="font-weight:bold; color:#2c3e50; font-size:1.0em;">${shopName}</div>
+        <div style="font-size:0.85em; color:#7f8c8d;">${shopName}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
-        <div style="color:#7f8c8d; font-size:0.9em;">${response.janCode || currentCode}</div>
-        <div style="color:#333; font-weight:bold; line-height:1.2;">${response.itemName || "---"}</div>
+        <div style="color:#7f8c8d; font-size:0.8em;">${response.janCode || currentCode}</div>
+        <div style="color:#333; font-weight:bold; line-height:1.2; font-size:0.9em;">${response.itemName || "---"}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align:right; vertical-align: middle;">
         <span style="font-size:1.1em; font-weight:bold; color:${stockColor};">

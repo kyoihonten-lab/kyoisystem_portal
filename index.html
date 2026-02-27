@@ -596,6 +596,9 @@ function reEnterShopCode() {
   setTimeout(() => { input.focus(); }, 100);
 }
 
+/**
+ * 📦 スキャン後の統合処理 (精査・修正版)
+ */
 async function processUnifiedFlow(code, mode) {
   if (!code || isFetching) return;
   
@@ -615,14 +618,14 @@ async function processUnifiedFlow(code, mode) {
   if (mode === 'stockAll') targetId = 'stockAllDetailArea';
 
   const targetEl = document.getElementById(targetId);
-  targetEl.style.display = 'block';
+  if (targetEl) targetEl.style.display = 'block';
 
   // 3. シュッと移動
   setTimeout(() => {
     window.scrollTo({ top: targetEl.offsetTop - 160, behavior: 'smooth' });
   }, 100);
 
-  // 4. 初期表示（照会中...）
+  // 4. 初期表示（ここでスキャンしたJANを即座に出す）
   if (mode === 'scan') {
     document.getElementById('itemNameDisplay').innerText = "商品確認中...";
     document.getElementById('janDisplay').innerText = "JAN: " + code;
@@ -630,36 +633,43 @@ async function processUnifiedFlow(code, mode) {
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = "商品検索中...";
     document.getElementById('sDetailJan').innerText = code;
-    // 古いYahoo情報をクリア
     document.getElementById('sDetailImage').src = "";
     document.getElementById('sDetailPrice').innerText = "---";
   } else if (mode === 'stockAll') {
+    // --- 【全店在庫】スキャンしたJANを即出しし、総在庫の枠を「計算中」にする ---
     document.getElementById('sStockName').innerText = "全店在庫を確認中...";
-    document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">読み込み中...</td></tr>';
+    const janHeader = document.getElementById('sStockJanHeader');
+    if (janHeader) {
+      janHeader.innerHTML = `
+        <div style="font-size: 1.0em; color: #7f8c8d;">JAN: ${code}</div>
+        <div id="totalStockDisplay" style="font-size: 1.2em; color: #e67e22; font-weight: bold; margin-top: 4px;">
+          全店在庫: 計算中...
+        </div>
+      `;
+    }
+    document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px;"><div class="loading-spinner"></div><br>読み込み中...</td></tr>';
   }
 
   // 5. GAS問い合わせ設定
   const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
-  const params = (mode === 'stockAll') ? { code: code } : { code: code };
+  const params = { code: code };
 
   const res = await callGAS(action, params);
   
-  isFetching = false; // 通信終了
+  isFetching = false; 
   
   if (!res) { 
     alert("データが取得できませんでした"); 
-    resetUI(false); 
+    // resetUI(false); などの復帰処理が必要ならここに
     return; 
   }
 
-  // 6. 結果の流し込み（ここで Undefined 対策を実施）
+  // 6. 結果の流し込み
   if (mode === 'scan') {
-    // 登録モード：res.name が無ければ "未登録の商品" と出す
     document.getElementById('itemNameDisplay').innerText = res.name || "未登録の商品";
     document.getElementById('mainRegBtn').disabled = false;
 
   } else if (mode === 'search') {
-    // 検索モード：既存のYahoo詳細もしっかり表示
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     const dCode = res.janCode || code;
     document.getElementById('sDetailJan').innerText = dCode;
@@ -675,8 +685,11 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('mainSaveBtn').disabled = false;
 
   } else if (mode === 'stockAll') {
-    // 全店在庫モード：受け取ったitemNameを表示
+    // 全店在庫モード：商品名を表示し、詳細リスト（と総在庫計算）を呼び出す
     document.getElementById('sStockName').innerText = "📦 " + (res.itemName || "商品名不明");
+    
+    // 【重要】responseに今のJANが含まれていない場合に備え、codeを補填して渡す
+    if (!res.janCode) res.janCode = code; 
     showAllStoreStock(res);
   }
 }
@@ -1323,10 +1336,6 @@ function loadAllProducts() {
   }
 }
   
- /**
- * 🌍 全店舗リスト用：チェックした商品の理論在庫を一括取得して表示
- * 取得開始時にチェックを自動で外すように改良
- */
 
 /**
  * 📦 選択した商品の在庫を一括取得する関数

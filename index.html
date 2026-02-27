@@ -187,29 +187,26 @@ button:disabled {
   .btn-stock-large { background: #2980b9; height: 50px; font-size: 1.1em; color: white; border: none; border-radius: 6px; font-weight: bold; box-shadow: 0 4px 0 #1c5982; display: none; cursor: pointer; }
 
 /* --- 共通のヘッダーデザイン（.cool-header） --- */
-/* --- テーブル全体の基本設定 --- */
-
+/* --- 1. テーブル全体のズレ防止 --- */
 .list-table {
   width: 100% !important;
   border-collapse: separate !important;
   border-spacing: 0 !important;
   table-layout: fixed;
   margin: 0 !important;
-  padding: 0 !important;
   background-color: #fff;
 }
 
-/* --- 3. データ行の罫線設定 --- */
+/* --- 3. データ行の罫線設定（15px 12pxを維持） --- */
 .list-table td { 
-  padding: 15px 12px !important; /* ゆったり余白を優先 */
-  border-bottom: 1px solid #ddd !important; /* 濃いめのグレー罫線 */
+  padding: 15px 12px !important; 
+  border-bottom: 1px solid #ddd !important;
   vertical-align: top; 
-  word-wrap: break-word;
   background-color: #ffffff;
-  box-sizing: border-box; /* ヘッダーと幅を一致させる */
+  box-sizing: border-box;
 }
 
-/* --- 2. ヘッダーデザイン（.cool-header を優先） --- */
+/* --- 2. 既存の cool-header を最優先（隙間対策版） --- */
 .cool-header th { 
   background-color: #34495e !important; 
   color: white !important; 
@@ -217,23 +214,29 @@ button:disabled {
   font-size: 0.85em !important; 
   text-align: center !important; 
   
-  /* 固定（sticky）設定 */
+  /* 固定（sticky）位置の調整 */
   position: -webkit-sticky;
   position: sticky;
-  /* メインヘッダー(45px) + 店コードエリア(55px) の下に固定する場合、topは100px */
+  /* メインヘッダー(45px) + 店コードエリア(55px) = 100px */
+  /* もし店コードエリアも固定されているなら 100px、そうでなければ 45px */
   top: 0; 
   z-index: 100;
-  
-  /* 下の隙間を埋めるための境界線設定 */
-  border-bottom: 2px solid #2c3e50 !important; 
+
+  /* 隙間を埋めるための処理：上下に境界線を明示 */
+  border-top: 1px solid #34495e !important; /* 背景と同色で上の隙間を埋める */
+  border-bottom: 2px solid #2c3e50 !important; /* ヘッダー下の太線 */
   box-sizing: border-box;
 }
-
   /* 列の幅固定 (10:22:48:20) */
   .col-check { width: 10%; text-align: center; }
   .col-info1 { width: 22%; }
   .col-info2 { width: 48%; }
   .col-info3 { width: 20%; }
+
+  /* 1行目のセルの上に線が出ないように調整（二重線を防ぐ） */
+.list-table tbody tr:first-child td {
+  border-top: none !important;
+}
 
   /* 店情報の表示形式 */
   .shop-label-code { font-size: 0.75em; color: #7f8c8d; font-weight: bold; display: block; }

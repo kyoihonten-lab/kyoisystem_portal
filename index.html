@@ -1344,11 +1344,21 @@ function loadAllProducts() {
  */
 
 async function fetchSelectedStocks(pageId) {
-  const page = document.getElementById(pageId);
+  // もし引数が空（ボタンのonclickから呼ばれた場合など）は、
+  // デフォルトで全店在庫ページ(pageAll)を対象にする
+  const targetPageId = pageId || 'pageAll';
+  const page = document.getElementById(targetPageId);
+  
+  if (!page) {
+    console.error("対象のページが見つかりません:", targetPageId);
+    return;
+  }
+
   const checks = page.querySelectorAll('.bulk-check:checked');
   if (checks.length === 0) return alert("在庫を確認する商品を選択してください");
 
-  // ボタンを「確認中」にする（pageId内の特定のボタン、または共通ボタン）
+  // ボタンを「確認中」にする
+  // page内のボタン、またはID指定のボタンを探す
   const btn = page.querySelector('button[onclick*="fetchSelectedStocks"]') || document.getElementById('btnStockAll');
   const originalText = btn ? btn.innerText : "チェック商品在庫確認";
   
@@ -1358,7 +1368,7 @@ async function fetchSelectedStocks(pageId) {
     btn.style.opacity = "0.5";
   }
 
-  // 1. チェックされた行から情報を抽出（昨日の効率化ロジック）
+  // 1. チェックされた行から情報を抽出（昨日の効率化ロジックを維持）
   const targets = Array.from(checks).map(c => ({
     barcode: c.getAttribute('data-jan'),
     shopCode: c.getAttribute('data-shop'),
@@ -1367,12 +1377,11 @@ async function fetchSelectedStocks(pageId) {
 
   // ★昨日の改善：処理が走り出したらチェックを外す
   checks.forEach(c => { c.checked = false; });
-  // 全選択チェックボックスも外す
-  const selectAll = document.getElementById(`selectAll_${pageId}`);
+  const selectAll = document.getElementById(`selectAll_${targetPageId}`);
   if (selectAll) selectAll.checked = false;
 
   try {
-    // 昨日の進化：GASに一括問い合わせ（1回の通信で済む）
+    // 昨日の進化：GASに一括問い合わせ
     const results = await callGAS("getBulkStocks", { targets });
     
     if (results && typeof results === 'object') {
@@ -1383,7 +1392,7 @@ async function fetchSelectedStocks(pageId) {
           const stock = results[t.recordId] !== undefined ? results[t.recordId] : "不明";
           badge.innerText = "理論在庫: " + stock;
           
-          // 今日のご要望：ここで初めて「表示」させる
+          // 今日のご要望：取得後に初めて表示させる
           badge.style.display = "inline-block"; 
         }
       });

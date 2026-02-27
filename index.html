@@ -1156,12 +1156,30 @@ function scrollToTop() {
   }
 }
   
-function handleModeChange() {
-  // 1. カメラ停止とUIリセット（既存の処理）
-  stopAllCameras();
-  resetUI(true);
+let lastValidMode = "scan"; // 直前の正常なモードを保持するための変数
 
-  // 2. 表示エリアをクリアし「更新待ち」メッセージを出す（ここが重要）
+function handleModeChange() {
+  const select = document.getElementById('mainModeSelect');
+  const currentMode = select.value;
+
+  // --- 1. 【機能強化】全店在庫照会モードならパスワード確認 ---
+  if (currentMode === 'stockAll') {
+    const pw = prompt("全店在庫照会モードを起動するにはパスワードを入力してください：");
+    if (pw !== "4936") { // パスワードはここで変更可能です
+      alert("パスワードが正しくありません。");
+      select.value = lastValidMode; // 認証失敗時は元のモード（scanなど）に戻す
+      return;
+    }
+  }
+
+  // 認証成功、または制限のないモードの場合は記録を更新
+  lastValidMode = currentMode;
+
+  // --- 2. 【既存の処理】カメラ停止とUIリセット ---
+  stopAllCameras();
+  if (typeof resetUI === 'function') resetUI(true);
+
+  // --- 3. 【既存の処理】表示エリアをクリアし「更新待ち」メッセージを出す ---
   const views = ['view_pageList', 'view_pageSummary', 'view_pageAll'];
   views.forEach(id => {
     const v = document.getElementById(id);
@@ -1171,12 +1189,18 @@ function handleModeChange() {
     }
   });
 
-  // 3. 手入力ボタンのテキスト変更
-  const mode = document.getElementById('mainModeSelect').value;
+  // --- 4. 【既存の処理】手入力ボタンのテキストとプレースホルダー変更 ---
   const manualBtn = document.getElementById('manualConfirmBtn');
   const manualInput = document.getElementById('manualJan');
-  if (manualBtn) manualBtn.innerText = (mode === 'scan') ? "確認" : "検索";
-  if (manualInput) manualInput.placeholder = (mode === 'scan') ? "JAN手入力" : "検索JAN入力";
+  
+  if (manualBtn) {
+    // scanモードなら「確認」、それ以外（search/stockAll）なら「検索」
+    manualBtn.innerText = (currentMode === 'scan') ? "確認" : "検索";
+  }
+  if (manualInput) {
+    // scanモードなら「JAN手入力」、それ以外なら「検索JAN入力」
+    manualInput.placeholder = (currentMode === 'scan') ? "JAN手入力" : "検索JAN入力";
+  }
 }
   
 function handleManualUnified() { const code = document.getElementById('manualJan').value.trim(); if (code) processUnifiedFlow(code, document.getElementById('mainModeSelect').value); }

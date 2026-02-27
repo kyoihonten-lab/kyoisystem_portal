@@ -1474,45 +1474,45 @@ function toggleAllChecks(source, pageId) {
 }
 
 /**
- * 全店在庫の結果を画面に表示 (修正版)
+ * 全店在庫の結果を画面に表示
  */
 function showAllStoreStock(response) {
   const tbody = document.getElementById('stockAllTableBody');
   const nameDisplay = document.getElementById('sStockName');
   const janHeader = document.getElementById('sStockJanHeader');
   
-  // 1. 【重要】通信前に表示をリセット（currentCode を即座に反映）
-  // ※この関数が「通信開始時」にも呼ばれるように構成するか、
-  // 通信開始直後に以下の3行だけ先に実行するようにすると、前の商品が残りません。
-  nameDisplay.innerText = "📦 " + (response.itemName || "照会中...");
+  // 1. 【改善】スキャンしたJANを即座に、かつ確実に表示
+  // 通信結果を待たずに、今読み取った currentCode をそのまま出します
   janHeader.innerHTML = `
-    <div>JAN: ${response.janCode || currentCode}</div>
-    <div id="totalStockDisplay" style="font-size: 1.1em; color: #e67e22; font-weight: bold; margin-top: 5px;">
-      照会中...
+    <div style="font-size: 1.0em; color: #7f8c8d;">JAN: ${currentCode}</div>
+    <div id="totalStockDisplay" style="font-size: 1.2em; color: #e67e22; font-weight: bold; margin-top: 4px;">
+      計算中...
     </div>
   `;
-  tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center;"><div class="loading-spinner"></div><br>データを取得中...</td></tr>';
 
-  // データがない場合はここで終了
+  // 商品名も「取得中」としてリセット
+  nameDisplay.innerText = "📦 " + (response.itemName || "商品情報を取得中...");
+  
+  // リストエリアをクリア（前のデータが残らないようにする）
+  tbody.innerHTML = ""; 
+
+  // データがない（または取得中）の場合
   if (!response.stocks || response.stocks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫のある店舗は見つかりませんでした</td></tr>';
-    document.getElementById('totalStockDisplay').innerText = "全店総在庫: 0";
+    tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫照会中、または在庫なし</td></tr>';
+    document.getElementById('totalStockDisplay').innerText = "全店在庫: 0";
     return;
   }
 
-  // 2. 【新機能】全店総在庫の計算
+  // 2. 全店総在庫の計算と表示更新
   const totalStock = response.stocks.reduce((sum, row) => sum + Number(row.stock || 0), 0);
-  document.getElementById('totalStockDisplay').innerText = "全店総在庫: " + totalStock.toLocaleString();
+  document.getElementById('totalStockDisplay').innerText = "全店在庫: " + totalStock.toLocaleString();
 
   // 3. 在庫リストの生成
-  tbody.innerHTML = ""; // 照会中メッセージをクリア
+  tbody.innerHTML = ""; 
   response.stocks.forEach(row => {
     const tr = document.createElement('tr');
-    
     const stockVal = Number(row.stock);
-    let stockColor = "#2980b9"; 
-    if (stockVal < 0) stockColor = "#e74c3c";
-    if (stockVal === 0) stockColor = "#95a5a6";
+    let stockColor = (stockVal > 0) ? "#2980b9" : (stockVal < 0 ? "#e74c3c" : "#95a5a6");
 
     const sInfo = row.shopInfo.split(" ");
     const shopCode = sInfo[0];
@@ -1520,11 +1520,11 @@ function showAllStoreStock(response) {
 
     tr.innerHTML = `
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
-        <div style="font-weight:bold; color:#2c3e50; font-size:1.0em;">${shopCode}</div>
+        <div style="font-weight:bold; color:#2c3e50;">${shopCode}</div>
         <div style="font-size:0.85em; color:#7f8c8d;">${shopName}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
-        <div style="color:#7f8c8d; font-size:0.8em;">${response.janCode || currentCode}</div>
+        <div style="color:#7f8c8d; font-size:0.8em;">${currentCode}</div>
         <div style="color:#333; font-weight:bold; line-height:1.2; font-size:0.9em;">${response.itemName || "---"}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align:right; vertical-align: middle;">

@@ -271,6 +271,39 @@ button:disabled {
   /* これを追加するだけ（既存の .stock-badge は変更不要） */
 #pageAll .stock-val { display: none; }
 
+  /* --- 全店在庫：ヘッダー内の並べ替えボタン --- */
+.sort-header {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 基本は中央 */
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.sort-trigger-btn {
+  position: absolute;
+  right: 2px; /* 右端に配置 */
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.8em;
+  cursor: pointer;
+}
+
+/* --- 商品情報の左寄せ --- */
+.text-left {
+  text-align: left !important;
+}
+
+/* 既存の th 設定を微調整 */
+#stockAllDetailArea thead th {
+  padding: 10px 4px;
+  font-size: 0.85em;
+}
+
   
   /* 共通パーツ */
   #backToTop { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: rgba(52, 152, 219, 0.8); color: white; border-radius: 50%; border: none; font-size: 1.5em; display: none; z-index: 2500; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
@@ -811,6 +844,43 @@ function renderList(pageId, list) {
 }
 
 /**
+ * 📋 在庫テーブルの中身だけを描画（ソート時にも利用）
+ */
+
+// 並べ替え用の状態保持
+let lastStockResponse = null; 
+let currentSort = { type: 'qty', order: 'desc' }; // 初期は在庫多い順
+  
+function renderStockTableOnly(response) {
+  const tbody = document.getElementById('stockAllTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  
+  response.stocks.forEach(row => {
+    const tr = document.createElement('tr');
+    const stockVal = Number(row.stock);
+    let stockColor = (stockVal > 0) ? "#2980b9" : (stockVal < 0 ? "#e74c3c" : "#95a5a6");
+    const sInfo = row.shopInfo.split(" ");
+
+    tr.innerHTML = `
+      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top; text-align: left;">
+        <div style="font-weight:bold; color:#2c3e50;">${sInfo[0]}</div>
+        <div style="font-size:0.85em; color:#7f8c8d;">${sInfo.slice(1).join(" ")}</div>
+      </td>
+      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top; text-align: left;">
+        <div style="color:#7f8c8d; font-size:0.8em;">${response.janCode || currentCode}</div>
+        <div style="color:#333; font-weight:bold; line-height:1.2; font-size:0.9em;">${response.itemName || "---"}</div>
+      </td>
+      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: right; vertical-align: middle;">
+        <span style="font-size:1.1em; font-weight:bold; color:${stockColor};">${stockVal.toLocaleString()}</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+  
+
+/**
  * モード別の並べ替えロジック
  */
 function sortListByMode(pageId, list, mode) {
@@ -835,18 +905,17 @@ function sortListByMode(pageId, list, mode) {
 }
   
 /**
- * 📊 ヘッダー生成 (出し分け・中央揃え完全版)
+ * 📊 ヘッダー生成 (通常一覧用：期限管理・検索)
  */
 function getTableHeaderByMode(mode, pageId) {
-  // 1. 全モード共通：一括チェックボックス列
   const selectHeader = `
     <th class="col-check" style="text-align: center; vertical-align: middle;">
       一括<br>
       <input type="checkbox" id="selectAll_${pageId}" onclick="toggleAllChecks(this, '${pageId}')" style="width:18px; height:18px;">
     </th>`;
 
-  if (mode === 'scan' || mode === 'stockAll') {
-    // 【スキャン・全店在庫モード】
+  // stockAll を削除し、通常のスキャン（期限登録）モードのみ判定
+  if (mode === 'scan') {
     return `
       <thead class="cool-header">
         <tr>
@@ -857,7 +926,7 @@ function getTableHeaderByMode(mode, pageId) {
         </tr>
       </thead>`;
   } else {
-    // 【検索/ECモード】「EC在庫状況」「EC価格」を表示
+    // 検索/ECモード
     return `
       <thead class="cool-header">
         <tr>
@@ -869,6 +938,33 @@ function getTableHeaderByMode(mode, pageId) {
       </thead>`;
   }
 }
+
+/**
+ * 📊 全店在庫モード専用ヘッダー (ソートボタン付き)
+ */
+function getStockAllHeader() {
+  // 並べ替えボタンの共通スタイル
+  const btnStyle = `position: absolute; right: 4px; background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 4px; padding: 2px 6px; font-size: 0.8em; cursor: pointer;`;
+
+  return `
+    <thead style="position: sticky; top: 0; z-index: 10; background: #34495e; color: white;">
+      <tr>
+        <th style="padding: 10px; width: 35%; position: relative;">
+          <div style="display: flex; align-items: center; justify-content: center;">
+            店舗
+            <button class="sort-trigger-btn" onclick="sortStockData('shop')" style="${btnStyle}">↕</button>
+          </div>
+        </th>
+        <th style="padding: 10px; text-align: left; width: 45%;">商品情報</th>
+        <th style="padding: 10px; width: 20%; position: relative;">
+          <div style="display: flex; align-items: center; justify-content: center;">
+            理論在庫
+            <button class="sort-trigger-btn" onclick="sortStockData('qty')" style="${btnStyle}">↕</button>
+          </div>
+        </th>
+      </tr>
+    </thead>`;
+}  
 
 /**
  * 📊 モード別行HTML生成 (全文)
@@ -1486,65 +1582,70 @@ function toggleAllChecks(source, pageId) {
  * 全店在庫の結果を画面に表示
  */
 function showAllStoreStock(response) {
-  const tbody = document.getElementById('stockAllTableBody');
+  lastStockResponse = response; 
+  
   const nameDisplay = document.getElementById('sStockName');
   const janHeader = document.getElementById('sStockJanHeader');
+  const tableContainer = document.querySelector('#stockAllDetailArea table');
+
+  // 1. ヘッダー情報のセット
+  nameDisplay.innerText = "📦 " + (response.itemName || "商品名不明");
+  nameDisplay.style.textAlign = "left"; // 左寄せ
   
-  // 1. 【改善】スキャンしたJANを即座に、かつ確実に表示
-  // 通信結果を待たずに、今読み取った currentCode をそのまま出します
   janHeader.innerHTML = `
-    <div style="font-size: 1.0em; color: #7f8c8d;">JAN: ${currentCode}</div>
-    <div id="totalStockDisplay" style="font-size: 1.2em; color: #e67e22; font-weight: bold; margin-top: 4px;">
-      計算中...
+    <div style="font-size: 1.0em; color: #7f8c8d; text-align: left;">JAN: ${response.janCode || currentCode}</div>
+    <div id="totalStockDisplay" style="font-size: 1.2em; color: #e67e22; font-weight: bold; margin-top: 4px; text-align: left;">
+      全店在庫: 計算中...
     </div>
   `;
 
-  // 商品名も「取得中」としてリセット
-  nameDisplay.innerText = "📦 " + (response.itemName || "商品情報を取得中...");
-  
-  // リストエリアをクリア（前のデータが残らないようにする）
-  tbody.innerHTML = ""; 
+  // 2. テーブル構造の再構築（既存のtheadを上書きして重複解消）
+  tableContainer.innerHTML = getStockAllHeader() + '<tbody id="stockAllTableBody"></tbody>';
 
-  // データがない（または取得中）の場合
+  // 3. データの有無チェック
   if (!response.stocks || response.stocks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫照会中、または在庫なし</td></tr>';
+    document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫のある店舗は見つかりませんでした</td></tr>';
     document.getElementById('totalStockDisplay').innerText = "全店在庫: 0";
     return;
   }
 
-  // 2. 全店総在庫の計算と表示更新
+  // 4. 中身の描画を実行
+  renderStockTableOnly(response);
+
+  // 5. 総在庫の計算と表示
   const totalStock = response.stocks.reduce((sum, row) => sum + Number(row.stock || 0), 0);
   document.getElementById('totalStockDisplay').innerText = "全店在庫: " + totalStock.toLocaleString();
-
-  // 3. 在庫リストの生成
-  tbody.innerHTML = ""; 
-  response.stocks.forEach(row => {
-    const tr = document.createElement('tr');
-    const stockVal = Number(row.stock);
-    let stockColor = (stockVal > 0) ? "#2980b9" : (stockVal < 0 ? "#e74c3c" : "#95a5a6");
-
-    const sInfo = row.shopInfo.split(" ");
-    const shopCode = sInfo[0];
-    const shopName = sInfo.slice(1).join(" ");
-
-    tr.innerHTML = `
-      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
-        <div style="font-weight:bold; color:#2c3e50;">${shopCode}</div>
-        <div style="font-size:0.85em; color:#7f8c8d;">${shopName}</div>
-      </td>
-      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top;">
-        <div style="color:#7f8c8d; font-size:0.8em;">${currentCode}</div>
-        <div style="color:#333; font-weight:bold; line-height:1.2; font-size:0.9em;">${response.itemName || "---"}</div>
-      </td>
-      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align:right; vertical-align: middle;">
-        <span style="font-size:1.1em; font-weight:bold; color:${stockColor};">
-          ${stockVal.toLocaleString()}
-        </span>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
+
+/**
+ * 🔄 並べ替え実行
+ */
+function sortStockData(type) {
+  if (!lastStockResponse || !lastStockResponse.stocks) return;
+
+  // 昇順・降順の切り替え
+  if (currentSort.type === type) {
+    currentSort.order = (currentSort.order === 'asc' ? 'desc' : 'asc');
+  } else {
+    currentSort.type = type;
+    currentSort.order = (type === 'qty' ? 'desc' : 'asc');
+  }
+
+  const data = lastStockResponse.stocks;
+  data.sort((a, b) => {
+    if (type === 'shop') {
+      const codeA = a.shopInfo.split(" ")[0];
+      const codeB = b.shopInfo.split(" ")[0];
+      return currentSort.order === 'asc' ? codeA.localeCompare(codeB) : codeB.localeCompare(codeA);
+    } else {
+      const qtyA = Number(a.stock);
+      const qtyB = Number(b.stock);
+      return currentSort.order === 'asc' ? qtyA - qtyB : qtyB - qtyA;
+    }
+  });
+
+  renderStockTableOnly(lastStockResponse);
+}  
 
 </script>
 </body>

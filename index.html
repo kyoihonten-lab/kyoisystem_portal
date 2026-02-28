@@ -370,8 +370,8 @@ button:disabled {
         <table style="width:100%; border-collapse: collapse; font-size: 0.85em;">
           <thead style="position: sticky; top: 0; z-index: 10; background: #34495e; color: white;">
             <tr>
-              <th style="padding: 10px; text-align:left; width: 35%;">店コード/店名</th>
-              <th style="padding: 10px; text-align:left; width: 45%;">JAN/商品名</th>
+              <th style="padding: 10px; text-align:left; width: 35%;">店舗</th>
+              <th style="padding: 10px; text-align:left; width: 45%;">商品</th>
               <th style="padding: 10px; text-align:right; width: 20%;">理論在庫</th>
             </tr>
           </thead>
@@ -1137,7 +1137,7 @@ function handleModeChange() {
 
   // --- 1. 【機能強化】全店在庫照会モードならパスワード確認 ---
   if (currentMode === 'stockAll') {
-    const pw = prompt("全店在庫照会モードを起動するにはパスワードを入力してください：");
+    const pw = prompt("パスワード");
     if (pw !== "4936") { // パスワードはここで変更可能です
       alert("パスワードが正しくありません。");
       select.value = lastValidMode; // 認証失敗時は元のモード（scanなど）に戻す

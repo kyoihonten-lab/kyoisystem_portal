@@ -281,16 +281,36 @@ button:disabled {
   height: 100%;
 }
 
+/* 並べ替えボタン：重なりを防ぎ、視認性を上げる */
 .sort-trigger-btn {
   position: absolute;
-  right: 2px; /* 右端に配置 */
-  background: rgba(255,255,255,0.2);
-  border: none;
+  right: 5px; /* 右端に固定 */
+  top: 50%;
+  transform: translateY(-50%); /* 垂直中央 */
+  background: rgba(255, 255, 255, 0.25); /* 薄く背景をつけてボタンと認識させる */
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
   border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.8em;
+  padding: 4px 6px;
+  font-size: 0.75em;
+  line-height: 1;
   cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sort-trigger-btn:active {
+  background: rgba(255, 255, 255, 0.5); /* 押した時に光る */
+}
+
+/* ヘッダーセルの文字がボタンと被らないように余白を作る */
+.sort-header-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 25px; /* 右側にボタン用のスペースを確保 */
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 /* --- 商品情報の左寄せ --- */
@@ -943,29 +963,25 @@ function getTableHeaderByMode(mode, pageId) {
  * 📊 全店在庫モード専用ヘッダー (ソートボタン付き)
  */
 function getStockAllHeader() {
-  // 並べ替えボタンの共通スタイル
-  const btnStyle = `position: absolute; right: 4px; background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 4px; padding: 2px 6px; font-size: 0.8em; cursor: pointer;`;
-
   return `
     <thead style="position: sticky; top: 0; z-index: 10; background: #34495e; color: white;">
       <tr>
-        <th style="padding: 10px; width: 35%; position: relative;">
-          <div style="display: flex; align-items: center; justify-content: center;">
+        <th style="padding: 10px 4px; width: 30%; position: relative;">
+          <div class="sort-header-container">
             店舗
-            <button class="sort-trigger-btn" onclick="sortStockData('shop')" style="${btnStyle}">↕</button>
+            <button class="sort-trigger-btn" onclick="sortStockData('shop')">↕</button>
           </div>
         </th>
-        <th style="padding: 10px; text-align: left; width: 45%;">商品</th>
-        <th style="padding: 10px; width: 20%; position: relative;">
-          <div style="display: flex; align-items: center; justify-content: center;">
-            理論在庫
-            <button class="sort-trigger-btn" onclick="sortStockData('qty')" style="${btnStyle}">↕</button>
+        <th style="padding: 10px 4px; text-align: center; width: 50%;">商品情報</th>
+        <th style="padding: 10px 4px; width: 20%; position: relative;">
+          <div class="sort-header-container">
+            在庫
+            <button class="sort-trigger-btn" onclick="sortStockData('qty')">↕</button>
           </div>
         </th>
       </tr>
     </thead>`;
-}  
-
+}
 /**
  * 📊 モード別行HTML生成 (全文)
  */

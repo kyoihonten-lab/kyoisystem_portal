@@ -429,9 +429,9 @@ button:disabled {
   
   <span id="shopDisplay" style="margin-left:8px; font-weight:bold; color: #2c3e50;">店コードを入力</span>
   
-  <button id="shopSubmitBtn" class="btn-change" onclick="reEnterShopCode()" 
+  <button id="shopSubmitBtn" class="btn-change" onclick="confirmLogout()" 
           style="margin-left:auto; padding:5px 10px; background:#3498db; color:white; border:none; border-radius:4px; height: 35px;">
-    再入力
+    ログアウト
   </button>
 </div>
     
@@ -758,20 +758,6 @@ async function processShopCode() {
   }
 }
 
-function reEnterShopCode() {
-  stopAllCameras(); 
-  const input = document.getElementById('shopInput');
-  const display = document.getElementById('shopDisplay');
-  input.readOnly = false;
-  input.disabled = false;
-  input.value = "";
-  input.style.backgroundColor = "#fff";
-  display.innerText = "店コードを入力";
-  const lockMsg = document.getElementById('shopLockMessage');
-  if (lockMsg) lockMsg.style.display = "block";
-  resetUI(true);
-  setTimeout(() => { input.focus(); }, 100);
-}
 
 /**
  * 📦 スキャン後の統合処理 (精査・修正版)
@@ -1809,6 +1795,36 @@ function sortStockData(type) {
 
   renderStockTableOnly(lastStockResponse);
 }  
+
+  /**
+ * 🚪 ログアウト処理
+ */
+function confirmLogout() {
+  if (!confirm("ログアウトしますか？")) return;
+
+  // 1. 店舗情報をリセット
+  document.getElementById('shopInput').value = "";
+  document.getElementById('shopDisplay').innerText = "店コードを入力";
+  
+  // 2. ログインフォームの中身を空にする
+  document.getElementById('loginShopCode').value = "";
+  document.getElementById('loginPassword').value = "";
+  document.getElementById('loginMessage').innerText = "";
+
+  // 3. ログインモーダルを再表示
+  const overlay = document.getElementById('loginOverlay');
+  overlay.style.display = 'flex';
+  overlay.style.pointerEvents = 'auto'; // クリックを再度有効化
+
+  // 4. 在庫リストなどをクリア（必要であれば）
+  const views = ['view_pageList', 'view_pageSummary', 'view_pageAll'];
+  views.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">ログインしてください</div>';
+  });
+
+  console.log("Logged out successfully");
+}
 
 </script>
 </body>

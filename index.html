@@ -1735,6 +1735,7 @@ function toggleAllChecks(source, pageId) {
 /**
  * 全店在庫の結果を画面に表示
  */
+
 function showAllStoreStock(response) {
   lastStockResponse = response; 
   
@@ -1744,20 +1745,20 @@ function showAllStoreStock(response) {
 
   // 1. ヘッダー情報のセット
   nameDisplay.innerText = "📦 " + (response.itemName || "商品名不明");
-  nameDisplay.style.textAlign = "left"; // 左寄せ
+  nameDisplay.style.textAlign = "left";
 
-  // response.janCode を確実に使う（もし空ならスキャン時の code を使う）
-const displayJan = response.janCode || code || "不明";
-
+  // 💡 正確な受け渡しのための修正ポイント：
+  // response.janCode があればそれを使い、なければ今の画面の code を使う
+  const displayJan = response.janCode || (typeof code !== 'undefined' ? code : currentCode) || "不明";
   
   janHeader.innerHTML = `
-    <div style="font-size: 1.0em; color: #7f8c8d; text-align: left;">JAN: ${response.janCode || currentCode}</div>
+    <div style="font-size: 1.0em; color: #7f8c8d; text-align: left;">JAN: ${displayJan}</div>
     <div id="totalStockDisplay" style="font-size: 1.2em; color: #e67e22; font-weight: bold; margin-top: 4px; text-align: left;">
       全店在庫: 計算中...
     </div>
   `;
 
-  // 2. テーブル構造の再構築（既存のtheadを上書きして重複解消）
+  // 2. テーブル構造の再構築
   tableContainer.innerHTML = getStockAllHeader() + '<tbody id="stockAllTableBody"></tbody>';
 
   // 3. データの有無チェック

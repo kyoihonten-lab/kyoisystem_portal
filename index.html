@@ -612,25 +612,27 @@ async function execLogin() {
   msgEl.innerText = "認証中...";
   msgEl.style.color = "#3498db";
 
-  // GAS側の checkLogin アクションを呼び出す
   const res = await callGAS("checkLogin", { shopCode, password });
 
   if (res && res.success) {
-   // 1. ログイン画面を完全に非表示にする
     const overlay = document.getElementById('loginOverlay');
-    overlay.style.setProperty('display', 'none', 'important'); // 強制的に消す
-    overlay.style.pointerEvents = 'none'; // クリックをスルーさせる
+    overlay.style.setProperty('display', 'none', 'important');
+    overlay.style.pointerEvents = 'none';
     
-    // 2. メイン画面の店コード入力欄に自動セット
+    // --- ここから修正箇所 ---
     const shopInput = document.getElementById('shopInput');
+    
+    // 重要：前回のロック状態を強制解除してから値をセットする
+    shopInput.readOnly = false; 
+    shopInput.disabled = false;
     shopInput.value = shopCode;
     
-    // 3. 店名表示を更新（既存の関数を流用）
+    // 店名取得を呼び出す
     processShopCode(); 
+    // ----------------------
     
     console.log("Login Success:", res.shopName);
   } else {
-    // 失敗時
     msgEl.innerText = res ? res.message : "通信エラーが発生しました";
     msgEl.style.color = "#e74c3c";
   }

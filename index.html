@@ -761,9 +761,7 @@ async function processShopCode() {
 }
 
 
-/**
- * 📦 スキャン後の統合処理 (精査・修正版)
- */
+/* 📦 スキャン後の統合処理 (最適化版) */
 async function processUnifiedFlow(code, mode) {
   if (!code || isFetching) return;
   
@@ -790,7 +788,7 @@ async function processUnifiedFlow(code, mode) {
     window.scrollTo({ top: targetEl.offsetTop - 160, behavior: 'smooth' });
   }, 100);
 
-  // 4. 初期表示（ここでスキャンしたJANを即座に出す）
+  // 4. 初期表示（スキャン直後の仮表示）
   if (mode === 'scan') {
     document.getElementById('itemNameDisplay').innerText = "商品確認中...";
     document.getElementById('janDisplay').innerText = "JAN: " + code;
@@ -801,7 +799,6 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('sDetailImage').src = "";
     document.getElementById('sDetailPrice').innerText = "---";
   } else if (mode === 'stockAll') {
-    // --- 【全店在庫】スキャンしたJANを即出しし、総在庫の枠を「計算中」にする ---
     document.getElementById('sStockName').innerText = "全店在庫を確認中...";
     const janHeader = document.getElementById('sStockJanHeader');
     if (janHeader) {
@@ -815,7 +812,7 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px;"><div class="loading-spinner"></div><br>読み込み中...</td></tr>';
   }
 
-  // 5. GAS問い合わせ設定
+  // 5. GAS問い合わせ
   const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
   const params = { code: code };
 
@@ -825,7 +822,6 @@ async function processUnifiedFlow(code, mode) {
   
   if (!res) { 
     alert("データが取得できませんでした"); 
-    // resetUI(false); などの復帰処理が必要ならここに
     return; 
   }
 
@@ -850,15 +846,24 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('mainSaveBtn').disabled = false;
 
   } else if (mode === 'stockAll') {
-    // 全店在庫モード：商品名を表示し、詳細リスト（と総在庫計算）を呼び出す
-    document.getElementById('sStockName').innerText = "📦 " + (res.itemName || "商品名不明");
+    // 【修正ポイント】商品名とJANを確実にセットする
+    const finalName = res.itemName || "商品名不明";
+    const finalJan = res.janCode || code;
     
-    // 【重要】responseに今のJANが含まれていない場合に備え、codeを補填して渡す
-    if (!res.janCode) res.janCode = code; 
-    showAllStoreStock(res);
+    document.getElementById('sStockName').innerText = "📦 " + finalName;
+    
+    // showAllStoreStockに渡すオブジェクトを整理
+    const stockData = {
+      janCode: finalJan,
+      itemName: finalName,
+      stocks: res.stocks || []
+    };
+    
+    // 理論在庫の集計と描画を実行
+    showAllStoreStock(stockData);
   }
 }
-
+  
 async function sendData() {
   const qtyInput = document.getElementById('qty');
   const qtyValue = qtyInput.value;
@@ -1732,22 +1737,22 @@ function toggleAllChecks(source, pageId) {
 }
 
 /**
- * 全店在庫の結果を画面に表示
+ * 📊 全店在庫表示のメイン処理
  */
-
 function showAllStoreStock(response) {
+  // 並べ替え用にレスポンスを保持
   lastStockResponse = response; 
   
   const nameDisplay = document.getElementById('sStockName');
   const janHeader = document.getElementById('sStockJanHeader');
+  // tableそのものではなく、コンテナ内のtableを指定
   const tableContainer = document.querySelector('#stockAllDetailArea table');
 
-  // 1. ヘッダー情報のセット
+  // 1. 商品名のセット
   nameDisplay.innerText = "📦 " + (response.itemName || "商品名不明");
   nameDisplay.style.textAlign = "left";
 
-  // 💡 正確な受け渡しのための修正ポイント：
-  // response.janCode があればそれを使い、なければ今の画面の code を使う
+  // 2. JANヘッダーの構築（currentCodeはprocessUnifiedFlowでセットされたもの）
   const displayJan = response.janCode || (typeof code !== 'undefined' ? code : currentCode) || "不明";
   
   janHeader.innerHTML = `
@@ -1757,31 +1762,70 @@ function showAllStoreStock(response) {
     </div>
   `;
 
-  // 2. テーブル構造の再構築
+  // 3. テーブル構造の初期化（ヘッダーと中身の入れ物を作成）
   tableContainer.innerHTML = getStockAllHeader() + '<tbody id="stockAllTableBody"></tbody>';
 
-  // 3. データの有無チェック
+  // 4. データの有無チェック
   if (!response.stocks || response.stocks.length === 0) {
-    document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫のある店舗は見つかりませんでした</td></tr>';
+    const tbody = document.getElementById('stockAllTableBody');
+    if(tbody) tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫のある店舗は見つかりませんでした</td></tr>';
     document.getElementById('totalStockDisplay').innerText = "全店在庫: 0";
     return;
   }
 
-  // 4. 中身の描画を実行
+  // 5. 中身の描画（実際の行生成）を実行
   renderStockTableOnly(response);
 
-  // 5. 総在庫の計算と表示
+  // 6. 総在庫の計算と表示更新
   const totalStock = response.stocks.reduce((sum, row) => sum + Number(row.stock || 0), 0);
   document.getElementById('totalStockDisplay').innerText = "全店在庫: " + totalStock.toLocaleString();
 }
 
 /**
- * 🔄 並べ替え実行
+ * 🔄 在庫テーブルの中身だけを描画（初期表示・ソート時に共通利用）
+ */
+function renderStockTableOnly(response) {
+  const tbody = document.getElementById('stockAllTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  
+  const finalJan = response.janCode || currentCode;
+  const finalName = response.itemName || "商品名不明";
+
+  response.stocks.forEach(row => {
+    const tr = document.createElement('tr');
+    const stockVal = Number(row.stock);
+    let stockColor = (stockVal > 0) ? "#2980b9" : (stockVal < 0 ? "#e74c3c" : "#95a5a6");
+    
+    // "店コード 店名" を分解
+    const sInfo = row.shopInfo.split(" ");
+    const sCode = sInfo[0];
+    const sName = sInfo.slice(1).join(" ");
+
+    tr.innerHTML = `
+      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; width: 30%;">
+        <div style="font-weight:bold; color:#2c3e50;">${sCode}</div>
+        <div style="font-size:0.85em; color:#7f8c8d;">${sName}</div>
+      </td>
+      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; width: 50%;">
+        <div style="color:#7f8c8d; font-size:0.75em;">JAN: ${finalJan}</div>
+        <div style="color:#333; font-weight:bold; line-height:1.2; font-size:0.85em;">${finalName}</div>
+      </td>
+      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: right; width: 20%;">
+        <span style="font-size:1.1em; font-weight:bold; color:${stockColor};">${stockVal.toLocaleString()}</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/**
+ * 🔄 在庫データの並べ替え実行
  */
 function sortStockData(type) {
   if (!lastStockResponse || !lastStockResponse.stocks) return;
 
-  // 昇順・降順の切り替え
+  // 昇順・降順の切り替えロジック
   if (currentSort.type === type) {
     currentSort.order = (currentSort.order === 'asc' ? 'desc' : 'asc');
   } else {
@@ -1794,16 +1838,19 @@ function sortStockData(type) {
     if (type === 'shop') {
       const codeA = a.shopInfo.split(" ")[0];
       const codeB = b.shopInfo.split(" ")[0];
-      return currentSort.order === 'asc' ? codeA.localeCompare(codeB) : codeB.localeCompare(codeA);
+      // 店コード（文字列）で比較
+      return currentSort.order === 'asc' ? codeA.localeCompare(codeB, undefined, {numeric: true}) : codeB.localeCompare(codeA, undefined, {numeric: true});
     } else {
       const qtyA = Number(a.stock);
       const qtyB = Number(b.stock);
+      // 在庫数（数値）で比較
       return currentSort.order === 'asc' ? qtyA - qtyB : qtyB - qtyA;
     }
   });
 
+  // 並べ替え後のデータで再描画
   renderStockTableOnly(lastStockResponse);
-}  
+}
 
   /**
  * 🚪 ログアウト処理

@@ -616,8 +616,10 @@ async function execLogin() {
   const res = await callGAS("checkLogin", { shopCode, password });
 
   if (res && res.success) {
-    // 1. ログイン画面を消す
-    document.getElementById('loginOverlay').style.display = 'none';
+   // 1. ログイン画面を完全に非表示にする
+    const overlay = document.getElementById('loginOverlay');
+    overlay.style.setProperty('display', 'none', 'important'); // 強制的に消す
+    overlay.style.pointerEvents = 'none'; // クリックをスルーさせる
     
     // 2. メイン画面の店コード入力欄に自動セット
     const shopInput = document.getElementById('shopInput');
@@ -1104,14 +1106,15 @@ function getStockAllHeader() {
       </tr>
     </thead>`;
 }
+
 /**
- * 📊 モード別行HTML生成 (全文)
+ * 📊 モード別行HTML生成
  */
 function getRowHtmlByMode(mode, item, pageId) {
   // チェックボックス（共通）
   const checkbox = `<td class="col-check" style="border-bottom: 1px solid #ddd;"><input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}"></td>`;
   
-  // 店情報を2行で構成
+  // 店情報
   let shopHeader = "";
   if (item.shopCode || item.shopName) {
     shopHeader = `
@@ -1119,12 +1122,9 @@ function getRowHtmlByMode(mode, item, pageId) {
       <div class="shop-label-name">${item.shopName || ''}</div>`;
   }
 
-  // ご指定のフォントサイズ
-  const fSize1 = "font-size: 0.75em;"; // 期限
-  const fSize2 = "font-size: 0.80em;"; // 商品情報
-  const fSize3 = "font-size: 0.90em;"; // 数・価格
-
-  // 共通の罫線スタイル
+  const fSize1 = "font-size: 0.75em;";
+  const fSize2 = "font-size: 0.80em;";
+  const fSize3 = "font-size: 0.90em;";
   const borderStyle = "border-bottom: 1px solid #ddd;";
 
   if (mode === 'scan' || mode === 'stockAll') {
@@ -1132,18 +1132,16 @@ function getRowHtmlByMode(mode, item, pageId) {
     const dateStr = item.expiry || "";
     const expiryDate = new Date(dateStr.replace(/\//g, '-'));
     const isExpired = (dateStr && !isNaN(expiryDate) && expiryDate <= today);
-
-    // 期限切れなら文字も赤に
     const highlightColor = isExpired ? "#e74c3c" : "#2c3e50";
 
-    // 理論在庫の表示制御 (hidden-initial)
     let stockClass = "stock-badge stock-val";
-    if (pageId === 'pageAll') {
-      stockClass += " hidden-initial";
-    }
+    if (pageId === 'pageAll') { stockClass += " hidden-initial"; }
 
     const stockDisp = (mode === 'stockAll' || pageId === 'pageAll') ? 
       `<div class="${stockClass}" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">-</div>` : "";
+
+    // 商品名のエスケープ
+    const safeName = (item.itemName || item.name || "").replace(/'/g, "\\'");
 
     return `
       <tr class="${isExpired ? 'danger' : ''}">
@@ -1153,13 +1151,14 @@ function getRowHtmlByMode(mode, item, pageId) {
           <div style="color:${highlightColor}; font-weight:bold;">${dateStr}</div>
         </td>
         <td class="col-info2" style="${fSize2} ${borderStyle}">
-          <div style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
+          <div class="jan-text" style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
           <div class="item-name-text" style="font-weight:bold; line-height:1.2; color:${highlightColor};">${item.itemName || item.name}</div>
           ${stockDisp}
         </td>
-        <td class="col-info3" style="text-align:center; ${fSize3} ${borderStyle}">
-          <div onclick="openQtyModal('${item.recordId}', '${(item.itemName || item.name).replace(/'/g, "\\'")}', ${item.qty})" 
-               style="display:inline-block; width:55px; height:35px; line-height:35px; border:1px solid #3498db; border-radius:4px; font-weight:bold; background:#fff; color:#333;">
+        <td class="col-info3" style="text-align:center; ${fSize3} ${borderStyle}; vertical-align: middle;">
+          <div class="qty-edit-trigger"
+               onclick="editQty('${item.recordId}', ${item.qty})" 
+               style="display:inline-block; width:58px; height:38px; line-height:38px; border:2px solid #3498db; border-radius:6px; font-weight:bold; background:#fff; color:#333; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <span id="qty-val-${item.recordId}">${item.qty}</span>
           </div>
         </td>
@@ -1175,7 +1174,7 @@ function getRowHtmlByMode(mode, item, pageId) {
           <div style="font-weight:bold; color:#2c3e50;">${item.inStock || '不明'}</div>
         </td>
         <td class="col-info2" style="${fSize2} ${borderStyle}">
-          <div style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
+          <div class="jan-text" style="font-size:0.85em; color:#7f8c8d;">${item.barcode}</div>
           <div style="font-weight:bold; line-height:1.2;">${item.itemName || item.name}</div>
         </td>
         <td class="col-info3" style="text-align:right; padding-right:10px; color:#e67e22; font-weight:bold; ${fSize3} ${borderStyle}">
@@ -1185,7 +1184,6 @@ function getRowHtmlByMode(mode, item, pageId) {
   }
   return "";
 }
-  
 async function bulkDelete(pageId) {
   const btn = document.getElementById(`btnComplete_${pageId}`);
   const mode = document.getElementById('mainModeSelect').value;
@@ -1625,78 +1623,87 @@ async function fetchSelectedStocks() {
   }
 }
   
-// 現在の editQty をこれに丸ごと差し替え
+/**
+ * 🔢 数量変更モーダルを開く & 更新処理
+ */
 async function editQty(recordId, oldQty) {
-  const parentRow = document.getElementById(`qty-val-${recordId}`).closest('tr');
-  const jan = parentRow.querySelector('.jan-text').innerText;
-  const itemName = parentRow.querySelector('b').innerText;
+  // 1. 画面上の要素を取得（データ属性やIDから取得）
+  const displayElem = document.getElementById(`qty-val-${recordId}`);
+  if (!displayElem) return;
 
-  // 要素に流し込む
+  // 親の行から情報を取得（getRowHtmlByMode の構造に合わせる）
+  const parentRow = displayElem.closest('tr');
+  const jan = parentRow.querySelector('.col-info2 div').innerText; // バーコード部分
+  const itemName = parentRow.querySelector('.item-name-text').innerText; // 商品名部分
+
+  // 2. モーダルの要素に流し込む
   document.getElementById('modalProductInfo').innerText = itemName;
   document.getElementById('modalJanInfo').innerText = jan;
   
   const input = document.getElementById('modalQtyInput');
   input.value = oldQty;
   
-  document.getElementById('qtyModal').style.display = 'flex';
+  // body.txt で定義されているID「qtyEditModal」を表示
+  // ※もし body.txt のIDが 'qtyModal' ならここを修正してください
+  const modal = document.getElementById('qtyEditModal') || document.getElementById('qtyModal');
+  modal.style.display = 'flex';
   
-  // 入力窓を自動フォーカス & 全選択（すぐに打ち替えられるように）
+  // 3. 入力窓を自動フォーカス & 全選択
   setTimeout(() => {
     input.focus();
-    input.setSelectionRange(0, 9999); // 全選択
+    input.setSelectionRange(0, 9999);
   }, 200);
 
+  // 4. 決定ボタンのイベント設定
   document.getElementById('modalConfirmBtn').onclick = async () => {
     const newQty = input.value;
     if (!newQty || newQty == oldQty) { closeQtyModal(); return; }
+    
     const num = parseInt(newQty);
-    if (isNaN(num) || num <= 0) { alert("1以上の数字を入力してください"); return; }
+    if (isNaN(num) || num < 0) { alert("0以上の数字を入力してください"); return; }
 
     closeQtyModal();
 
-    // --- ここから下の「更新演出」は元のコードと同じ ---
-    const displayElem = document.getElementById(`qty-val-${recordId}`);
+    // 更新演出
     const parentBox = displayElem.parentElement;
+    const originalText = displayElem.innerText;
     displayElem.style.fontSize = "10px";
     displayElem.innerText = "更新中...";
     displayElem.style.color = "#aaa";
     parentBox.style.pointerEvents = "none";
 
     try {
+      // GAS呼び出し
       const res = await callGAS("updateStockQty", { recordId: recordId, newQty: num });
       if (res === "完了") {
-        displayElem.style.fontSize = "1.1em";
+        displayElem.style.fontSize = "1.1em"; // フォントサイズを戻す
         displayElem.innerText = num;
         displayElem.style.color = "#333";
         parentBox.style.backgroundColor = "#e8f5e9";
+        // 次回のクリック用に引数を更新
         parentBox.setAttribute("onclick", `editQty('${recordId}', ${num})`);
       } else {
         alert("エラー: " + res);
-        displayElem.innerText = oldQty;
+        displayElem.innerText = originalText;
         displayElem.style.color = "#333";
       }
     } catch (e) {
       alert("通信エラーが発生しました");
-      displayElem.innerText = oldQty;
+      displayElem.innerText = originalText;
       displayElem.style.color = "#333";
     } finally {
       parentBox.style.pointerEvents = "auto";
+      displayElem.style.fontSize = "1.1em"; 
       setTimeout(() => { parentBox.style.backgroundColor = "#fff"; }, 800);
     }
   };
-
-  // キーボードを確実に呼び出し、数字を選択状態にする
-  setTimeout(() => {
-    input.focus();
-    input.select();
-  }, 100);
 }
 
-// モーダルを閉じるだけの関数
+// モーダルを閉じる関数（ID名に注意）
 function closeQtyModal() {
-  document.getElementById('qtyModal').style.display = 'none';
+  const modal = document.getElementById('qtyEditModal') || document.getElementById('qtyModal');
+  if (modal) modal.style.display = 'none';
 }
-  
 /**
  * 全選択・全解除の制御
  * @param {HTMLElement} source - クリックされた親チェックボックス

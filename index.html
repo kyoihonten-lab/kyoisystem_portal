@@ -1745,6 +1745,10 @@ function showAllStoreStock(response) {
   // 1. ヘッダー情報のセット
   nameDisplay.innerText = "📦 " + (response.itemName || "商品名不明");
   nameDisplay.style.textAlign = "left"; // 左寄せ
+
+  // response.janCode を確実に使う（もし空ならスキャン時の code を使う）
+const displayJan = response.janCode || code || "不明";
+
   
   janHeader.innerHTML = `
     <div style="font-size: 1.0em; color: #7f8c8d; text-align: left;">JAN: ${response.janCode || currentCode}</div>

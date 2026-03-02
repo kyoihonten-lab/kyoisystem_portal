@@ -950,16 +950,16 @@ function renderList(pageId, list) {
     return;
   }
 
-  // 並べ替え
+  // 並べ替え処理
   sortListByMode(pageId, list, mode);
 
-  // ボタンの表示連動
+  // ボタン表示制御
   if(bulkBtn) bulkBtn.style.display = 'block';
   if(stockBtn) {
     stockBtn.style.display = (pageId === 'pageAll' && (mode === 'scan' || mode === 'stockAll')) ? 'block' : 'none';
   }
 
-  // テーブル生成：余計なインラインスタイルを排除し CSS に任せる
+  // テーブル生成
   let html = `<table class="list-table">
                 ${getTableHeaderByMode(mode, pageId)}
                 <tbody>`;
@@ -969,9 +969,6 @@ function renderList(pageId, list) {
   });
   
   html += `</tbody></table>`;
-
-  // 【重要】overflow 設定のある div で囲わず、直接 HTML を入れます。
-  // これにより sticky がボディ全体に対して効くようになります。
   view.innerHTML = html;
 }
 
@@ -983,6 +980,10 @@ function renderList(pageId, list) {
 let lastStockResponse = null; 
 let currentSort = { type: 'qty', order: 'desc' }; // 初期は在庫多い順
   
+/**
+ * 🌍 全店舗の在庫テーブル（tbody）だけを描画する
+ * BigQueryの結果を流し込む専用の関数
+ */
 function renderStockTableOnly(response) {
   const tbody = document.getElementById('stockAllTableBody');
   if (!tbody) return;
@@ -991,7 +992,10 @@ function renderStockTableOnly(response) {
   response.stocks.forEach(row => {
     const tr = document.createElement('tr');
     const stockVal = Number(row.stock);
+    // 在庫数に応じて色分け
     let stockColor = (stockVal > 0) ? "#2980b9" : (stockVal < 0 ? "#e74c3c" : "#95a5a6");
+    
+    // "店コード 店名" を分解
     const sInfo = row.shopInfo.split(" ");
 
     tr.innerHTML = `
@@ -1000,7 +1004,7 @@ function renderStockTableOnly(response) {
         <div style="font-size:0.85em; color:#7f8c8d;">${sInfo.slice(1).join(" ")}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: top; text-align: left;">
-        <div style="color:#7f8c8d; font-size:0.8em;">${response.janCode || currentCode}</div>
+        <div style="color:#7f8c8d; font-size:0.8em;">${response.janCode}</div>
         <div style="color:#333; font-weight:bold; line-height:1.2; font-size:0.9em;">${response.itemName || "---"}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: right; vertical-align: middle;">
@@ -1010,7 +1014,6 @@ function renderStockTableOnly(response) {
     tbody.appendChild(tr);
   });
 }
-  
 
 /**
  * モード別の並べ替えロジック

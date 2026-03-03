@@ -1489,6 +1489,20 @@ async function refreshPage(pageId) {
     }
     return;
   }
+
+  // --- 【追加】全店舗リスト(pageAll)でのモード制限 ---
+  if (pageId === 'pageAll' && mode === 'stockAll') {
+    if (targetView) {
+      targetView.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-weight:bold;">⚠️ 期限登録モード、または商品検索モードに切り替えてください</div>';
+    }
+    // ボタンの状態だけ元に戻して終了
+    if (targetBtn) {
+      targetBtn.disabled = false;
+      targetBtn.innerText = "全店舗リスト表示";
+      targetBtn.style.opacity = "1.0";
+    }
+    return;
+  }
   
   if (!shopCode && pageId !== 'pageAll') {
     alert("店コードを入力してください");

@@ -845,21 +845,24 @@ async function processUnifiedFlow(code, mode) {
     }
     document.getElementById('mainSaveBtn').disabled = false;
 
-  } else if (mode === 'stockAll') {
-    // 【修正ポイント】商品名とJANを確実にセットする
-    const finalName = res.itemName || "商品名不明";
-    const finalJan = res.janCode || code;
+} else if (mode === 'stockAll') {
+    // 💡 JAN1, JAN2 は「商品名」を特定するためにGAS側で使われるが、
+    // 画面に在庫を表示する際のキーは、常に「メインのJAN」に一本化する
+    const finalName = res.name || res.itemName || "商品名不明";
+    const finalJan = res.janCode || code; // これがメインのJAN
     
     document.getElementById('sStockName').innerText = "📦 " + finalName;
     
-    // showAllStoreStockに渡すオブジェクトを整理
+    // 在庫リストの描画データを整理
     const stockData = {
-      janCode: finalJan,
+      janCode: finalJan, // BQと照合するメインの数値キー
       itemName: finalName,
-      stocks: res.stocks || []
+      stocks: (res.stocks || []).map(s => ({
+        ...s,
+        stock: Number(s.stock || 0) // 在庫数は数値として扱う
+      }))
     };
     
-    // 理論在庫の集計と描画を実行
     showAllStoreStock(stockData);
   }
 }
@@ -1582,56 +1585,41 @@ function loadAllProducts() {
 }
   
 
-/**
- * 📦 選択した商品の在庫を一括取得する関数
- * ※関数名は変更せず、中身の処理（一括取得・チェック解除）も維持しています
- */
 async function fetchSelectedStocks() {
-  // 既存の取得先セレクタを維持
   const checks = document.querySelectorAll('#pageAll .bulk-check:checked');
   if (checks.length === 0) return alert("在庫を確認する商品を選択してください");
 
   const btn = document.getElementById('btnStockAll');
-  const originalText = "チェック商品在庫確認";
   if (btn) {
     btn.disabled = true;
     btn.innerText = "在庫照会中...";
-    btn.style.opacity = "0.5";
   }
 
-  const targets = Array.from(checks).map(c => ({
-    barcode: c.getAttribute('data-jan'),
-    shopCode: c.getAttribute('data-shop'),
-    recordId: c.getAttribute('data-id')
-  }));
-
-  checks.forEach(c => { c.checked = false; });
+  // 💡 IDリストだけを抽出し、GAS側の getBatchStocksByIds を呼び出す
+  const recordIds = Array.from(checks).map(c => c.getAttribute('data-id'));
+  const shopCode = checks[0].getAttribute('data-shop');
 
   try {
-    const results = await callGAS("getBulkStocks", { targets });
+    // GAS側で B列(ID)からE列(メインJAN)を特定し、BQのINTEGERと比較させる
+    const results = await callGAS("getBatchStocksByIds", { shopCode, recordIds });
     
-    if (results && typeof results === 'object') {
-      targets.forEach(t => {
-        const badge = document.querySelector(`.stock-val[data-id="${t.recordId}"]`);
+    if (results) {
+      recordIds.forEach(id => {
+        const badge = document.querySelector(`.stock-val[data-id="${id}"]`);
         if (badge) {
-          const stock = results[t.recordId] !== undefined ? results[t.recordId] : "不明";
+          const stock = results[id] !== undefined ? results[id] : "0";
           badge.innerText = "理論在庫: " + stock;
-          
-          // 【追加機能】取得が完了したタイミングで表示をONにする
           badge.style.display = "inline-block"; 
         }
       });
-    } else {
-      alert("在庫データの取得に失敗しました");
+      checks.forEach(c => { c.checked = false; });
     }
   } catch (e) {
     console.error(e);
-    alert("通信エラーが発生しました");
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerText = originalText;
-      btn.style.opacity = "1.0";
+      btn.innerText = "チェック商品在庫確認";
     }
   }
 }

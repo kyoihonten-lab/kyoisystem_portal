@@ -1134,23 +1134,23 @@ function getStockAllHeader() {
 }
 
 /**
- * 📊 モード別行HTML生成 (レイアウト最適化版)
+ * 📊 モード別行HTML生成 (自店在庫バッジ常時表示版)
  */
 function getRowHtmlByMode(mode, item, pageId) {
-  // 共通の変数
   const today = new Date(); today.setHours(0,0,0,0);
   const dateStr = item.expiry || "";
   const expiryDate = new Date(dateStr.replace(/\//g, '-'));
   const isExpired = (dateStr && !isNaN(expiryDate) && expiryDate <= today);
   const highlightColor = isExpired ? "#e74c3c" : "#2c3e50";
+  
+  // 💡 自店の店コードを取得
+  const myShopCode = document.getElementById('shopInput').value;
 
-  // チェックボックス（col-checkクラスを付与）
   const checkbox = `
     <td class="col-check">
       <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">
     </td>`;
   
-  // 店情報
   let shopHeader = "";
   if (item.shopCode || item.shopName) {
     shopHeader = `
@@ -1158,16 +1158,24 @@ function getRowHtmlByMode(mode, item, pageId) {
       <div class="shop-label-name">${item.shopName || ''}</div>`;
   }
 
-  if (mode === 'scan' || mode === 'stockAll') {
+  // --- 💡 在庫表示ロジックの強化 ---
+  let stockDisp = "";
+  
+  // 1. すでに item.stocks に在庫データが含まれている場合（自店分を抽出）
+  if (item.stocks && Array.isArray(item.stocks)) {
+    const myStock = item.stocks.find(s => String(s.shopInfo).startsWith(myShopCode));
+    if (myStock) {
+      stockDisp = `<div class="stock-badge">自店在庫: ${myStock.stock}</div>`;
+    }
+  } 
+  // 2. データがないが、後から非同期で読み込むための枠（既存の仕組みを維持）
+  else if (mode === 'stockAll' || pageId === 'pageAll') {
     let stockClass = "stock-badge stock-val";
     if (pageId === 'pageAll') { stockClass += " hidden-initial"; }
+    stockDisp = `<div class="${stockClass}" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">-</div>`;
+  }
 
-    const stockDisp = (mode === 'stockAll' || pageId === 'pageAll') ? 
-      `<div class="${stockClass}" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">-</div>` : "";
-
-    // 商品名のエスケープ
-    const safeName = (item.itemName || item.name || "").replace(/'/g, "\\'");
-
+  if (mode === 'scan' || mode === 'stockAll') {
     return `
       <tr class="${isExpired ? 'danger' : ''}">
         ${checkbox}
@@ -1178,12 +1186,11 @@ function getRowHtmlByMode(mode, item, pageId) {
         <td class="col-info2">
           <div class="jan-text" style="font-size:0.75em; color:#7f8c8d;">${item.barcode}</div>
           <div class="item-name-text" style="color:${highlightColor}; font-weight:bold; line-height:1.2;font-size:0.90em;">${item.itemName || item.name}</div>
-          ${stockDisp}
-        </td>
+          ${stockDisp} </td>
         <td class="col-info3" style="vertical-align: middle;">
           <div class="qty-edit-trigger"
-               onclick="editQty('${item.recordId}', ${item.qty})" 
-               style="display:inline-block; width:48px; height:34px; line-height:34px; border:2px solid #3498db; border-radius:6px; font-weight:bold; background:#fff; color:#333; cursor:pointer; text-align:center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                onclick="editQty('${item.recordId}', ${item.qty})" 
+                style="display:inline-block; width:48px; height:34px; line-height:34px; border:2px solid #3498db; border-radius:6px; font-weight:bold; background:#fff; color:#333; cursor:pointer; text-align:center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <span id="qty-val-${item.recordId}">${item.qty}</span>
           </div>
         </td>
@@ -1197,7 +1204,7 @@ function getRowHtmlByMode(mode, item, pageId) {
         <td class="col-info1">
           ${shopHeader}
           <div style="font-weight:bold; color:#2c3e50; font-size:0.85em;">${item.inStock || '不明'}</div>
-        </td>
+          ${stockDisp} </td>
         <td class="col-info2">
           <div class="jan-text" style="font-size:0.75em; color:#7f8c8d;">${item.barcode}</div>
           <div class="item-name-text" style="font-weight:bold; line-height:1.2;font-size:0.90em;">${item.itemName || item.name}</div>

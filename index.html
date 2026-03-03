@@ -238,9 +238,9 @@ button:disabled {
 
   /* 店情報の表示形式 */
   .shop-label-code { font-size: 0.75em; color: #7f8c8d; font-weight: bold; display: block; }
-  .shop-label-name { font-size: 0.85em; color: #2c3e50; display: block; margin-bottom: 4px; }
+  .shop-label-name { font-size: 0.85em; color: #2c3e50; display: block; margin-bottom: 4px;font-weight: bold !important;}
   .danger td { color: #e74c3c !important; font-weight: bold !important; }
-  .shop-info { font-size: 0.9em; color: #2c3e50; font-weight: bold; margin-bottom: 4px; line-height: 1.2; }
+  .shop-info { font-size: 0.9em; color: #2c3e50; font-weight: bold!important; margin-bottom: 4px; line-height: 1.2; }
   .stock-badge { display: inline-block; background: #ebf5fb; color: #2980b9; padding: 2px 6px; border-radius: 4px; font-weight: bold; border: 1px solid #d6eaf8; margin-top: 4px; font-size: 0.8em; }
 
   /* ナビゲーション */
@@ -1037,7 +1037,7 @@ function renderStockTableOnly(response) {
     tr.innerHTML = `
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left;">
         <div style="font-weight:bold; color:#2c3e50;">${sInfo[0]}</div>
-        <div style="font-size:0.85em; color:#7f8c8d;">${sInfo.slice(1).join(" ")}</div>
+        <div style="font-size:0.9em; font-weight:bold; color:#7f8c8d;line-height: 1.2;">${sInfo.slice(1).join(" ")}</div>
       </td>
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left;">
         <div style="color:#7f8c8d; font-size:0.8em;">JAN: ${finalJan}</div>

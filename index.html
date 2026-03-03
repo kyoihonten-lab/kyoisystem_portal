@@ -1134,7 +1134,7 @@ function getStockAllHeader() {
 }
 
 /**
- * 📊 モード別行HTML生成 (リスト別の表示切り替え版)
+ * 📊 モード別行HTML生成 (全リストでチェックボックス維持・在庫のみ出し分け)
  */
 function getRowHtmlByMode(mode, item, pageId) {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1145,28 +1145,21 @@ function getRowHtmlByMode(mode, item, pageId) {
   
   const myShopCode = document.getElementById('shopInput').value;
 
-  // --- 💡 1. チェックボックスの制御 ---
-  // 全店舗リスト(pageAll)の時だけチェックボックスを表示
-  let checkbox = "";
-  if (pageId === 'pageAll') {
-    checkbox = `
-      <td class="col-check">
-        <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">
-      </td>`;
-  } else {
-    // 他のリストではチェックボックス用の列を空にするか、列自体を詰めたい場合は調整
-    checkbox = `<td class="col-check" style="display:none;"></td>`; 
-  }
+  // --- ✅ 1. チェックボックス：削除機能のために全リストで「必ず」表示 ---
+  const checkbox = `
+    <td class="col-check">
+      <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">
+    </td>`;
   
-  // --- 💡 2. 在庫表示の制御 ---
+  // --- ✅ 2. 在庫表示の制御 ---
   let stockDisp = "";
   
-  // 【全店舗リスト】(pageAll) → ボタン押下まで「-」表示
+  // 【全店舗登録リスト】(pageAll) → 従来通り「-」表示（ボタンで読み込み）
   if (pageId === 'pageAll') {
     const stockClass = "stock-badge stock-val hidden-initial";
     stockDisp = `<div class="${stockClass}" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">-</div>`;
   } 
-  // 【その他のリスト】(pageSummary, pageList) → 常時表示
+  // 【その他のリスト】(pageSummary, pageList) → 常時表示（データなしは0）
   else {
     let stockNum = 0;
     if (item.stocks && Array.isArray(item.stocks)) {
@@ -1180,8 +1173,7 @@ function getRowHtmlByMode(mode, item, pageId) {
   if (mode === 'scan' || mode === 'stockAll') {
     return `
       <tr class="${isExpired ? 'danger' : ''}">
-        ${checkbox}
-        <td class="col-info1">
+        ${checkbox} <td class="col-info1">
           <div class="shop-label-code">${item.shopCode || ''}</div>
           <div class="shop-label-name"><strong>${item.shopName || ''}</strong></div>
           <div style="color:${highlightColor}; font-weight:bold; font-size:0.85em;">${dateStr}</div>
@@ -1194,14 +1186,12 @@ function getRowHtmlByMode(mode, item, pageId) {
         <td class="col-info3" style="vertical-align: middle;">
           <div class="qty-edit-trigger"
                 onclick="editQty('${item.recordId}', ${item.qty})" 
-                style="display:inline-block; width:48px; height:34px; line-height:34px; border:2px solid #3498db; border-radius:6px; font-weight:bold; background:#fff; color:#333; cursor:pointer; text-align:center;">
+                style="display:inline-block; width:48px; height:34px; line-height:34px; border:2px solid #3498db; border-radius:6px; font-weight:bold; background:#fff; color:#333; cursor:pointer; text-align:center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <span id="qty-val-${item.recordId}">${item.qty}</span>
           </div>
         </td>
       </tr>`;
   }
-  
-  // (searchモードなどは省略、同様のロジックで適用)
   return "";
 }
 

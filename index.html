@@ -1733,24 +1733,20 @@ function toggleAllChecks(source, pageId) {
   });
 }
 
-/**
- * 📊 全店在庫表示のメイン処理
- */
 function showAllStoreStock(response) {
-  // 並べ替え用にレスポンスを保持
   lastStockResponse = response; 
   
   const nameDisplay = document.getElementById('sStockName');
   const janHeader = document.getElementById('sStockJanHeader');
-  // tableそのものではなく、コンテナ内のtableを指定
-  const tableContainer = document.querySelector('#stockAllDetailArea table');
+  // 💡 tableそのものではなく、その親のコンテナ（ID指定が確実）を取得
+  const container = document.getElementById('stockAllDetailArea'); 
 
   // 1. 商品名のセット
-  nameDisplay.innerText = "📦 " + (response.itemName || "商品名不明");
-  nameDisplay.style.textAlign = "left";
+  const finalName = response.itemName || response.name || "商品名不明";
+  nameDisplay.innerText = "📦 " + finalName;
 
-  // 2. JANヘッダーの構築（currentCodeはprocessUnifiedFlowでセットされたもの）
-  const displayJan = response.janCode || (typeof code !== 'undefined' ? code : currentCode) || "不明";
+  // 2. JANヘッダーの構築
+  const displayJan = response.janCode || "不明";
   
   janHeader.innerHTML = `
     <div style="font-size: 1.0em; color: #7f8c8d; text-align: left;">JAN: ${displayJan}</div>
@@ -1759,62 +1755,28 @@ function showAllStoreStock(response) {
     </div>
   `;
 
-  // 3. テーブル構造の初期化（ヘッダーと中身の入れ物を作成）
-  tableContainer.innerHTML = getStockAllHeader() + '<tbody id="stockAllTableBody"></tbody>';
+  // 3. テーブルエリアの初期化
+  // コンテナの中身を「ヘッダー付きテーブル」で丸ごと上書きし、tbodyを確実に用意する
+  container.querySelector('table').innerHTML = `
+    <thead>${getStockAllHeader()}</thead>
+    <tbody id="stockAllTableBody"></tbody>
+  `;
 
-  // 4. データの有無チェック
+  // 4. 総在庫の計算（先に計算しておく）
+  const totalStock = (response.stocks || []).reduce((sum, row) => sum + Number(row.stock || 0), 0);
+  document.getElementById('totalStockDisplay').innerText = "全店在庫: " + totalStock.toLocaleString();
+
+  // 5. データの有無チェックと描画
+  const tbody = document.getElementById('stockAllTableBody');
   if (!response.stocks || response.stocks.length === 0) {
-    const tbody = document.getElementById('stockAllTableBody');
     if(tbody) tbody.innerHTML = '<tr><td colspan="3" style="padding:40px; text-align:center; color:#999;">在庫のある店舗は見つかりませんでした</td></tr>';
-    document.getElementById('totalStockDisplay').innerText = "全店在庫: 0";
     return;
   }
 
-  // 5. 中身の描画（実際の行生成）を実行
+  // 実際の行生成を実行
   renderStockTableOnly(response);
-
-  // 6. 総在庫の計算と表示更新
-  const totalStock = response.stocks.reduce((sum, row) => sum + Number(row.stock || 0), 0);
-  document.getElementById('totalStockDisplay').innerText = "全店在庫: " + totalStock.toLocaleString();
 }
 
-/**
- * 🔄 在庫テーブルの中身だけを描画（初期表示・ソート時に共通利用）
- */
-function renderStockTableOnly(response) {
-  const tbody = document.getElementById('stockAllTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = "";
-  
-  const finalJan = response.janCode || currentCode;
-  const finalName = response.itemName || "商品名不明";
-
-  response.stocks.forEach(row => {
-    const tr = document.createElement('tr');
-    const stockVal = Number(row.stock);
-    let stockColor = (stockVal > 0) ? "#2980b9" : (stockVal < 0 ? "#e74c3c" : "#95a5a6");
-    
-    // "店コード 店名" を分解
-    const sInfo = row.shopInfo.split(" ");
-    const sCode = sInfo[0];
-    const sName = sInfo.slice(1).join(" ");
-
-    tr.innerHTML = `
-      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; width: 30%;">
-        <div style="font-weight:bold; color:#2c3e50;">${sCode}</div>
-        <div style="font-size:0.85em; color:#7f8c8d;">${sName}</div>
-      </td>
-      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; width: 50%;">
-        <div style="color:#7f8c8d; font-size:0.75em;">JAN: ${finalJan}</div>
-        <div style="color:#333; font-weight:bold; line-height:1.2; font-size:0.85em;">${finalName}</div>
-      </td>
-      <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: right; width: 20%;">
-        <span style="font-size:1.1em; font-weight:bold; color:${stockColor};">${stockVal.toLocaleString()}</span>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
 
 /**
  * 🔄 在庫データの並べ替え実行

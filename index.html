@@ -845,24 +845,29 @@ async function processUnifiedFlow(code, mode) {
     }
     document.getElementById('mainSaveBtn').disabled = false;
 
-} else if (mode === 'stockAll') {
-    // 💡 JAN1, JAN2 は「商品名」を特定するためにGAS側で使われるが、
-    // 画面に在庫を表示する際のキーは、常に「メインのJAN」に一本化する
+}else if (mode === 'stockAll') {
+    // 💡 GAS側の返り値のプロパティ名を「res.name」と「res.itemName」両方に対応させる
+    // JANコードも、入力されたcode（JAN1/JAN2の可能性あり）ではなく、マスタのメインJAN(res.janCode)を優先する
     const finalName = res.name || res.itemName || "商品名不明";
-    const finalJan = res.janCode || code; // これがメインのJAN
+    const finalJan = res.janCode || code; 
     
     document.getElementById('sStockName').innerText = "📦 " + finalName;
     
-    // 在庫リストの描画データを整理
+    // 💡 取得した在庫データ(res.stocks)を整形
+    // BQからINTEGERで返ってきているため、念のため数値変換を確実に行う
+    const formattedStocks = (res.stocks || []).map(s => ({
+      shopInfo: s.shopInfo || "不明な店舗",
+      stock: (s.stock === null || s.stock === undefined) ? 0 : Number(s.stock)
+    }));
+
     const stockData = {
-      janCode: finalJan, // BQと照合するメインの数値キー
+      janCode: finalJan,
       itemName: finalName,
-      stocks: (res.stocks || []).map(s => ({
-        ...s,
-        stock: Number(s.stock || 0) // 在庫数は数値として扱う
-      }))
+      stocks: formattedStocks
     };
     
+    // 💡 全店在庫表示用の関数（showAllStoreStock）を呼び出し
+    // ※もしこの関数内でエラーが出ている場合は、この下の renderStockTableOnly も確認が必要
     showAllStoreStock(stockData);
   }
 }
@@ -988,23 +993,27 @@ function renderList(pageId, list) {
 let lastStockResponse = null; 
 let currentSort = { type: 'qty', order: 'desc' }; // 初期は在庫多い順
   
-/**
- * 🌍 全店舗の在庫テーブル（tbody）を描画する
- */
 function renderStockTableOnly(response) {
   const tbody = document.getElementById('stockAllTableBody');
   if (!tbody) return;
   tbody.innerHTML = "";
   
-  // GAS側(getAllStoreStock)から返ってきた確実な情報を変数に格納
+  // 💡 response.itemName が無い場合に res.name を探す
   const finalJan = response.janCode || "---";
-  const finalName = response.itemName || "マスタ未登録の商品";
+  const finalName = response.itemName || response.name || "マスタ未登録の商品";
+
+  if (!response.stocks || response.stocks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">在庫データがありません</td></tr>';
+    return;
+  }
 
   response.stocks.forEach(row => {
     const tr = document.createElement('tr');
-    const stockVal = Number(row.stock);
+    const stockVal = Number(row.stock || 0);
     let stockColor = (stockVal > 0) ? "#2980b9" : (stockVal < 0 ? "#e74c3c" : "#95a5a6");
-    const sInfo = row.shopInfo.split(" ");
+    
+    // shopInfo が "店コード 店名" の形式であることを想定
+    const sInfo = (row.shopInfo || "000000 不明").split(" ");
 
     tr.innerHTML = `
       <td style="padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left;">

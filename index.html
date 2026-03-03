@@ -733,7 +733,8 @@ async function processShopCode() {
   const lockMsg = document.getElementById('shopLockMessage');
   const code = input.value.trim();
   
-  if (!code || input.readOnly) return;
+  // 入力が空、または既にロックされている（readOnly）なら何もしない
+  if (!code) return;
 
   display.innerText = "⏳ 照会中...";
   display.style.color = "#f39c12";
@@ -741,26 +742,39 @@ async function processShopCode() {
   try {
     const res = await callGAS("getStoreName", { code });
     
-    // 💡 修正ポイント：返り値がオブジェクトの場合(res.name)と、文字列の場合(res)の両方に対応
-    const storeName = (res && typeof res === 'object') ? (res.name || res.storeName) : res;
+    // 💡 修正ポイント：GASの返り値が {name: "店舗名"} でも "店舗名" (文字列) でも対応する
+    let storeName = "";
+    if (res && typeof res === 'object') {
+      storeName = res.name || res.storeName || "";
+    } else {
+      storeName = res;
+    }
 
-    if (storeName && storeName !== "未登録の店舗") {
+    // 取得した値が有効な店名（文字列）であることを確認
+    if (storeName && storeName !== "未登録の店舗" && String(storeName) !== "[object Object]") {
       currentShopName = storeName;
-      display.innerText = storeName; // ここで正しい店名が表示されます
+      display.innerText = storeName;
       display.style.color = "#2c3e50"; 
+      
       if (lockMsg) lockMsg.style.display = "none"; 
+      
+      // 🔒 ここで窓をロックする
       input.readOnly = true; 
-      input.style.backgroundColor = "#e8f5e9";
+      input.style.backgroundColor = "#e8f5e9"; // 薄い緑色にして固定感を出す
+      
+      // スキャンエリアを表示させる
       const scanArea = document.getElementById('scanActionArea');
       if (scanArea) scanArea.style.display = "block";
+      
     } else {
       display.innerText = "未登録の店舗";
       display.style.color = "#e74c3c";
       if (lockMsg) lockMsg.style.display = "block"; 
-      input.value = "";
+      input.value = ""; // 間違ったコードは消す
+      input.readOnly = false; // 再入力可能にする
     }
   } catch (e) {
-    console.error(e);
+    console.error("店名取得エラー:", e);
     display.innerText = "通信エラー";
   }
 }

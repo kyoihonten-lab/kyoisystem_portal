@@ -1134,7 +1134,7 @@ function getStockAllHeader() {
 }
 
 /**
- * 📊 モード別行HTML生成 (全リストでチェックボックス維持・在庫のみ出し分け)
+ * 📊 モード別行HTML生成 (レイアウト維持・数量更新演出の復活版)
  */
 function getRowHtmlByMode(mode, item, pageId) {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1145,22 +1145,18 @@ function getRowHtmlByMode(mode, item, pageId) {
   
   const myShopCode = document.getElementById('shopInput').value;
 
-  // --- ✅ 1. チェックボックス：削除機能のために全リストで「必ず」表示 ---
+  // --- 1. チェックボックス（全リストで表示） ---
   const checkbox = `
     <td class="col-check">
       <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">
     </td>`;
   
-  // --- ✅ 2. 在庫表示の制御 ---
+  // --- 2. 在庫表示の制御 ---
   let stockDisp = "";
-  
-  // 【全店舗登録リスト】(pageAll) → 従来通り「-」表示（ボタンで読み込み）
   if (pageId === 'pageAll') {
     const stockClass = "stock-badge stock-val hidden-initial";
     stockDisp = `<div class="${stockClass}" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">-</div>`;
-  } 
-  // 【その他のリスト】(pageSummary, pageList) → 常時表示（データなしは0）
-  else {
+  } else {
     let stockNum = 0;
     if (item.stocks && Array.isArray(item.stocks)) {
       const myStock = item.stocks.find(s => String(s.shopInfo).startsWith(myShopCode));
@@ -1169,11 +1165,12 @@ function getRowHtmlByMode(mode, item, pageId) {
     stockDisp = `<div class="stock-badge">理論在庫: ${stockNum}</div>`;
   }
 
-  // --- レイアウト生成 (scan / stockAll モード) ---
+  // --- 3. レイアウト生成 ---
   if (mode === 'scan' || mode === 'stockAll') {
     return `
       <tr class="${isExpired ? 'danger' : ''}">
-        ${checkbox} <td class="col-info1">
+        ${checkbox}
+        <td class="col-info1">
           <div class="shop-label-code">${item.shopCode || ''}</div>
           <div class="shop-label-name"><strong>${item.shopName || ''}</strong></div>
           <div style="color:${highlightColor}; font-weight:bold; font-size:0.85em;">${dateStr}</div>

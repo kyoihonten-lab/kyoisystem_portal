@@ -1236,20 +1236,24 @@ async function bulkDelete(pageId) {
     // モードによってアクションを切り替え
     const action = (mode === 'scan') ? "deleteRowsBulk" : "deletePriceRowsBulk";
     
-    const res = await callGAS(action, { ids: ids });
+const res = await callGAS(action, { ids: ids });
 
-    if (res === "完了" || res === true) {
+    // 💡 判定を強化：文字列の "完了" や "処理完了"、または true なら成功とみなす
+    if (res === "完了" || res === "処理完了" || res === true) {
       alert("完了しました");
+      
       // リストを再取得して画面を更新
+// リストを再取得して画面を更新
       if (typeof refreshPage === 'function') {
         refreshPage(pageId);
       } else {
-        // refreshPageがない場合は現在のモードに合わせて再ロード
         handleModeChange();
       }
     } else {
-      alert("エラーが発生しました: " + (res.error || res));
+      // 💡 もしGAS側で「一致するIDがありませんでした」と返ってきた場合もここにくるので、内容がわかる
+      alert("実行結果: " + (res.error || res));
     }
+    
   } catch (e) {
     console.error(e);
     alert("通信エラーが発生しました");

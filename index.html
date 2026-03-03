@@ -739,10 +739,14 @@ async function processShopCode() {
   display.style.color = "#f39c12";
 
   try {
-    const name = await callGAS("getStoreName", { code });
-    if (name) {
-      currentShopName = name;
-      display.innerText = name;
+    const res = await callGAS("getStoreName", { code });
+    
+    // 💡 修正ポイント：返り値がオブジェクトの場合(res.name)と、文字列の場合(res)の両方に対応
+    const storeName = (res && typeof res === 'object') ? (res.name || res.storeName) : res;
+
+    if (storeName && storeName !== "未登録の店舗") {
+      currentShopName = storeName;
+      display.innerText = storeName; // ここで正しい店名が表示されます
       display.style.color = "#2c3e50"; 
       if (lockMsg) lockMsg.style.display = "none"; 
       input.readOnly = true; 
@@ -756,10 +760,11 @@ async function processShopCode() {
       input.value = "";
     }
   } catch (e) {
+    console.error(e);
     display.innerText = "通信エラー";
   }
 }
-
+  
 
 /* 📦 スキャン後の統合処理 (最適化版) */
 async function processUnifiedFlow(code, mode) {

@@ -1911,6 +1911,7 @@ function updateFilterOptions() {
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 3) {
+      
       // --- 1. 店舗情報抽出 ---
       let shopFull = cells[1]?.innerText.trim() || "";
       let shopLines = shopFull.split('\n');
@@ -1927,10 +1928,21 @@ function updateFilterOptions() {
       let itemLines = itemFull.split('\n');
       let janMatch = itemFull.match(/\d{8,14}/);
       let janCode = janMatch ? janMatch[0] : "";
+      
+      // 日本語が含まれる行を探す
       let itemName = itemLines.find(l => /[ぁ-んァ-ヶ亜-熙]/.test(l)) || itemLines.find(l => l.trim().length > 0 && !/^\d+$/.test(l));
-
-      if (itemName && janCode) {
-        nameMap.set(janCode, itemName.trim());
+      
+      if (itemName) {
+        itemName = itemName.trim();
+        
+        // 【追加ロジック】「未登録の商品」の場合はJANを横に付ける
+        if (itemName === "未登録の商品" && janCode) {
+          itemName = `${itemName} (${janCode})`;
+        }
+        
+        if (janCode) {
+          nameMap.set(janCode, itemName);
+        }
       }
     }
   });
@@ -1942,12 +1954,8 @@ function updateFilterOptions() {
     if (!selectObj) return;
     selectObj.innerHTML = `<option value="">${defaultText}</option>`;
     
-    // 【修正ポイント】キー（コード/JAN）で昇順ソート
     Array.from(dataMap.entries())
-      .sort((a, b) => {
-        // 数字として比較（文字列でも数字順に並ぶように）
-        return Number(a[0]) - Number(b[0]);
-      })
+      .sort((a, b) => Number(a[0]) - Number(b[0])) // コード昇順
       .forEach(([key, name]) => {
         let opt = document.createElement('option');
         opt.value = key;

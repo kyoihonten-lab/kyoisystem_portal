@@ -1905,82 +1905,78 @@ function confirmLogout() {
 
 function updateFilterOptions() {
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');
-  const shopMap = new Map(); // 店コードをキー、表示名を値にする
-  const nameMap = new Map(); // JANをキー、商品名を値にする
+  const shopMap = new Map(); // 店コード => "店名"
+  const nameMap = new Map(); // JAN => "商品名"
 
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
-    if (cells.length > 2) {
-      // --- 店舗情報の抽出 ---
-      let shopFullText = cells[1]?.innerText || "";
-      // 3〜4桁の店コードを抽出（例: 101 や 1234）
-      let shopCodeMatch = shopFullText.match(/\d{3,4}/);
-      let shopCode = shopCodeMatch ? shopCodeMatch[0] : "";
-      // 表示用（1行目だけ）
-      let shopName = shopFullText.split('\n')[0].trim();
+    if (cells.length >= 3) {
+      // --- 1. 店舗情報 (cells[1]) ---
+      let shopFull = cells[1]?.innerText.trim() || "";
+      let shopLines = shopFull.split('\n');
+      let shopName = shopLines[0]; // 1行目を店名とする
+      let shopCodeMatch = shopFull.match(/\d{3,4}/); // 3〜4桁の数字をコードとする
+      let shopCode = shopCodeMatch ? shopCodeMatch[0] : shopName;
 
-      if (shopCode) shopMap.set(shopCode, shopName);
+      if (shopName) shopMap.set(shopCode, shopName);
 
-      // --- 商品情報の抽出 ---
-      let itemFullText = cells[2]?.innerText || "";
-      let janMatch = itemFullText.match(/\d{8,14}/);
+      // --- 2. 商品情報 (cells[2]) ---
+      let itemFull = cells[2]?.innerText.trim() || "";
+      let itemLines = itemFull.split('\n');
+      let itemName = itemLines[0].replace(/\d{8,14}/g, '').trim(); // 1行目からJANを除いたものを商品名とする
+      let janMatch = itemFull.match(/\d{8,14}/); // 8〜14桁の数字をJANとする
       let janCode = janMatch ? janMatch[0] : "";
-      let itemName = itemFullText.split('\n')[0].replace(/\d{8,14}/g, '').trim();
 
-      if (janCode && itemName) nameMap.set(janCode, itemName);
+      // JANがあるものだけリストに載せる（リストが出ない原因対策）
+      if (itemName && janCode) {
+        nameMap.set(janCode, itemName);
+      } else if (itemName) {
+        // JANが取れなくても、商品名自体をキーにして載せる
+        nameMap.set(itemName, itemName);
+      }
     }
   });
 
   const shopSelect = document.getElementById('filterShop');
   const nameSelect = document.getElementById('filterName');
 
-  // 店舗プルダウン更新
   if (shopSelect) {
     shopSelect.innerHTML = '<option value="">店舗選択</option>';
-    const sortedShops = Array.from(shopMap.entries()).sort((a, b) => a[0] - b[0]);
-    sortedShops.forEach(([code, name]) => {
-      // valueに店コード、表示に店名を入れる
+    // 店名を表示、valueにコードを入れる
+    Array.from(shopMap.entries()).sort().forEach(([code, name]) => {
       shopSelect.innerHTML += `<option value="${code}">${name}</option>`;
     });
   }
 
-  // 商品プルダウン更新
   if (nameSelect) {
     nameSelect.innerHTML = '<option value="">商品選択</option>';
+    // 商品名を表示、valueにJANを入れる
     const sortedNames = Array.from(nameMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    sortedNames.forEach(([jan, name]) => {
-      nameSelect.innerHTML += `<option value="${jan}">${name}</option>`;
+    sortedNames.forEach(([key, name]) => {
+      nameSelect.innerHTML += `<option value="${key}">${name}</option>`;
     });
   }
 }
 
-/**
- * 🔍 店コード・JAN・入力JANの3条件で絞り込む（最強安定版）
- */
 function filterList() {
-  const shopCodeQuery = document.getElementById('filterShop').value.trim();
-  const janKeyQuery = document.getElementById('filterName').value.trim();
-  const janInputQuery = document.getElementById('filterJan').value.trim();
+  const shopQuery = document.getElementById('filterShop').value;
+  const nameQuery = document.getElementById('filterName').value;
+  const janInput = document.getElementById('filterJan').value.trim();
 
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');
 
   rows.forEach(row => {
-    // 行全体のテキストを取得（これに店コードもJANも全て含まれている前提）
     const rowText = row.innerText;
+    
+    // 各条件の判定（空なら常にtrue）
+    const matchShop = !shopQuery || rowText.includes(shopQuery);
+    const matchName = !nameQuery || rowText.includes(nameQuery);
+    const matchJan  = !janInput  || rowText.includes(janInput);
 
-    // 判定：クエリが空、または行内にその数字が含まれているか
-    const matchShop = !shopCodeQuery || rowText.includes(shopCodeQuery);
-    const matchNameJan = !janKeyQuery || rowText.includes(janKeyQuery);
-    const matchInputJan = !janInputQuery || rowText.includes(janInputQuery);
-
-    // 全条件クリアで表示
-    if (matchShop && matchNameJan && matchInputJan) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
-    }
+    // すべて一致する場合のみ表示
+    row.style.display = (matchShop && matchName && matchJan) ? "" : "none";
   });
-}  
+} 
   
 </script>
 </body>

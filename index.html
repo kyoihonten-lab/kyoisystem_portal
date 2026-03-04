@@ -596,6 +596,26 @@ async function callGAS(action, params = {}) {
   } catch(e) { console.error(e); return null; }
 }
 
+window.onload = function() {
+  // 1. お掃除（ここが重要！）
+  const msgEl = document.getElementById('loginMessage');
+  const shopInput = document.getElementById('loginShopCode');
+  const passInput = document.getElementById('loginPassword');
+
+  if (msgEl) msgEl.innerText = ""; 
+  if (shopInput) shopInput.value = "";
+  if (passInput) passInput.value = "";
+
+  // 2. 表示（これだけでOK）
+  const overlay = document.getElementById('loginOverlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+  
+  // 💡 ボタンの紐付けはHTML側（onclick="execLogin()"）で済んでいるので、
+  // ここに loginBtn.onclick ... は書かなくて大丈夫です。
+};
+  
   /**
  * 🔑 ログイン実行処理
  */

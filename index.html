@@ -1902,96 +1902,60 @@ function confirmLogout() {
 
   console.log("Logged out successfully");
 }
-/**
- * 🔍 3つの条件（店・商品・JAN）を組み合わせて絞り込む
- */
 function filterList() {
-  const shopQuery = document.getElementById('filterShop').value;
-  const nameQuery = document.getElementById('filterName').value;
-  const janQuery = document.getElementById('filterJan').value;
+  const shopQuery = document.getElementById('filterShop').value.trim();
+  const janKeyQuery = document.getElementById('filterName').value.trim(); // 商品名プルダウンからJANを取得
+  const janInputQuery = document.getElementById('filterJan').value.trim();
 
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');
 
   rows.forEach(row => {
-    const shopText = row.querySelector('.shop-label-code')?.innerText || "";
-    const nameText = row.querySelector('.item-name-text')?.innerText || "";
-    const janText = row.querySelector('.jan-text')?.innerText || "";
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 3) {
+      const shopText = cells[1]?.innerText || "";
+      const rowFullText = row.innerText; // 行全体のテキスト（JANや商品名を含む）
 
-    // 全ての条件に一致するか判定（未選択ならパス）
-    const matchShop = !shopQuery || shopText === shopQuery;
-    const matchName = !nameQuery || nameText === nameQuery;
-    const matchJan = !janQuery || janText.includes(janQuery);
+      // 判定
+      const matchShop = !shopQuery || shopText.includes(shopQuery);
+      
+      // 商品プルダウン(JANキー)での判定：行の中にそのJANが含まれているか
+      const matchNameJan = !janKeyQuery || rowFullText.includes(janKeyQuery);
+      
+      // 手入力JANでの判定
+      const matchInputJan = !janInputQuery || rowFullText.includes(janInputQuery);
 
-    if (matchShop && matchName && matchJan) {
-      row.style.display = "";
-    } else {
-      row.style.display = "none";
+      if (matchShop && matchNameJan && matchInputJan) {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
     }
   });
 }
 
-
 function updateFilterOptions() {
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');
   const shopSet = new Set();
-  const nameSet = new Set();
-
-  rows.forEach(row => {
-    // クラス名でピンポイントに取得（もしクラス名がなければ cells[1] を使う）
-    // 店舗名（例: "101(稲沢店)" のような部分だけを抽出）
-    let shopText = row.querySelector('.shop-label-code')?.innerText.trim() 
-                || row.querySelectorAll('td')[1]?.innerText.split('\n')[0].trim(); 
-    
-    // 商品名（改行が含まれる場合は最初の1行目だけ取得）
-    let nameText = row.querySelector('.item-name-text')?.innerText.trim()
-                || row.querySelectorAll('td')[2]?.innerText.split('\n')[0].trim();
-
-    if (shopText) shopSet.add(shopText);
-    if (nameText) nameSet.add(nameText);
-  });
-
-  const shopSelect = document.getElementById('filterShop');
-  const nameSelect = document.getElementById('filterName');
-
-  if (shopSelect) {
-    shopSelect.innerHTML = '<option value="">店舗選択</option>';
-    Array.from(shopSet).sort().forEach(val => {
-      // 表示が長すぎる場合はカット（例: 15文字まで）
-      const displayVal = val.length > 15 ? val.substring(0, 15) + "..." : val;
-      shopSelect.innerHTML += `<option value="${val}">${displayVal}</option>`;
-    });
-  }
-
-  if (nameSelect) {
-    nameSelect.innerHTML = '<option value="">商品選択</option>';
-    Array.from(nameSet).sort().forEach(val => {
-      const displayVal = val.length > 15 ? val.substring(0, 15) + "..." : val;
-      nameSelect.innerHTML += `<option value="${val}">${displayVal}</option>`;
-    });
-  }
-}
-
-
-function updateFilterOptions() {
-  const rows = document.querySelectorAll('#view_pageAll table tbody tr');
-  const shopSet = new Set();
-  const nameSet = new Set();
+  const nameMap = new Map(); // JANをキー、商品名を値にする
 
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length > 2) {
-      // 1. 店舗名の抽出（1行目だけ取得）
+      // 1. 店舗名の抽出
       let shopText = cells[1]?.innerText.split('\n')[0].trim();
       
-      // 2. 商品名の抽出（数字や改行を排除）
-      let nameFull = cells[2]?.innerText || "";
-      // 改行で分割して1行目を取得し、さらに13桁前後の数字（JAN）を空文字に置換
-      let nameClean = nameFull.split('\n')[0]
-                              .replace(/\d{8,14}/g, '') // 8〜14桁の連続する数字を消す
-                              .trim();
+      // 2. JANと商品名の抽出
+      // 13桁前後の数字（JAN）を探す
+      let fullText = cells[2]?.innerText || "";
+      let janMatch = fullText.match(/\d{8,14}/); // 8〜14桁の数字を抽出
+      let janCode = janMatch ? janMatch[0] : "";
+      
+      // 商品名（JANを除去して1行目だけ）
+      let nameClean = fullText.split('\n')[0].replace(/\d{8,14}/g, '').trim();
 
       if (shopText) shopSet.add(shopText);
-      if (nameClean) nameSet.add(nameClean);
+      // JANがある場合のみ、商品名とセットで保存
+      if (janCode && nameClean) nameMap.set(janCode, nameClean);
     }
   });
 
@@ -2007,13 +1971,14 @@ function updateFilterOptions() {
 
   if (nameSelect) {
     nameSelect.innerHTML = '<option value="">商品選択</option>';
-    Array.from(nameSet).sort().forEach(val => {
-      // 念のため商品名が空になっていないかチェックして追加
-      if(val) nameSelect.innerHTML += `<option value="${val}">${val}</option>`;
+    // 商品名でアイウエオ順にソートして追加
+    const sortedNames = Array.from(nameMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    sortedNames.forEach(([jan, name]) => {
+      // valueにJANを入れ、表示は商品名にする
+      nameSelect.innerHTML += `<option value="${jan}">${name}</option>`;
     });
   }
 }
-
 </script>
 </body>
 </html>

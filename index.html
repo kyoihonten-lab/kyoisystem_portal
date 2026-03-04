@@ -549,7 +549,7 @@ button:disabled {
   <div style="padding:10px;">
     <button class="btn-list-init" onclick="refreshPage('pageAll')">全店舗リスト表示</button>
     
-    <div id="filterArea" style="margin-top:10px; margin-bottom:10px; display:flex; flex-direction:column; gap:8px; background:#f0f7ff; padding:10px; border-radius:8px;">
+    <div id="filterArea" style="margin-top:5px; margin-bottom:5px; display:flex; flex-direction:column; gap:8px; background:#f0f7ff; padding:10px; border-radius:8px;">
       
       <select id="filterShop" onchange="filterList()" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc;">
         <option value="">全ての店舗を表示</option>
@@ -1922,6 +1922,70 @@ function filterList() {
       row.style.display = "";
     } else {
       row.style.display = "none";
+    }
+  });
+}
+
+  /**
+ * 📋 プルダウンの選択肢を自動作成する
+ */
+function updateFilterOptions() {
+  const rows = document.querySelectorAll('#view_pageAll table tbody tr');
+  const shopSet = new Set();
+  const nameSet = new Set();
+
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length > 2) {
+      // 列番号は実際の表に合わせて調整（0:チェック, 1:店名, 2:JAN/商品名 と仮定）
+      const shopText = cells[1]?.innerText.trim(); 
+      const nameText = cells[2]?.innerText.trim(); 
+      
+      if (shopText) shopSet.add(shopText);
+      if (nameText) nameSet.add(nameText);
+    }
+  });
+
+  const shopSelect = document.getElementById('filterShop');
+  const nameSelect = document.getElementById('filterName');
+
+  if (shopSelect) {
+    shopSelect.innerHTML = '<option value="">全ての店舗を表示</option>';
+    Array.from(shopSet).sort().forEach(val => {
+      shopSelect.innerHTML += `<option value="${val}">${val}</option>`;
+    });
+  }
+  if (nameSelect) {
+    nameSelect.innerHTML = '<option value="">全ての商品を表示</option>';
+    Array.from(nameSet).sort().forEach(val => {
+      nameSelect.innerHTML += `<option value="${val}">${val}</option>`;
+    });
+  }
+}
+
+/**
+ * 🔍 3つの条件で絞り込む（クラス名に頼らない版）
+ */
+function filterList() {
+  const shopQuery = document.getElementById('filterShop').value;
+  const nameQuery = document.getElementById('filterName').value;
+  const janQuery = document.getElementById('filterJan').value;
+
+  const rows = document.querySelectorAll('#view_pageAll table tbody tr');
+
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length > 2) {
+      const shopText = cells[1]?.innerText.trim();
+      const nameText = cells[2]?.innerText.trim();
+      // JANは大抵商品名と同じセルか、その近くにあるはずなので行全体から探す
+      const rowText = row.innerText;
+
+      const matchShop = !shopQuery || shopText === shopQuery;
+      const matchName = !nameQuery || nameText === nameQuery;
+      const matchJan = !janQuery || rowText.includes(janQuery);
+
+      row.style.display = (matchShop && matchName && matchJan) ? "" : "none";
     }
   });
 }

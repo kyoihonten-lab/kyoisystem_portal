@@ -1937,7 +1937,7 @@ function updateFilterOptions() {
         
         // 【追加ロジック】「未登録の商品」の場合はJANを横に付ける
         if (itemName === "未登録の商品" && janCode) {
-          itemName = `${itemName} (${janCode})`;
+          itemName = `${janCode} ${itemName}`;
         }
         
         if (janCode) {
@@ -1964,8 +1964,8 @@ function updateFilterOptions() {
       });
   };
 
-  renderOptions(shopSelect, shopMap, "店舗選択");
-  renderOptions(nameSelect, nameMap, "商品選択");
+  renderOptions(shopSelect, shopMap, "全店舗表示");
+  renderOptions(nameSelect, nameMap, "全商品表示");
 }
   
 function filterList() {

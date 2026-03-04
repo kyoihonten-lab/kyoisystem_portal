@@ -548,7 +548,15 @@ button:disabled {
 <div id="pageAll" class="page">
   <div style="padding:10px;">
     <button class="btn-list-init" onclick="refreshPage('pageAll')">全店舗リスト表示</button>
-    <div style="display:flex; gap:8px; margin-bottom:10px;">
+    /*フィルタボタン*/
+    <div style="margin-top:10px;">
+      <input type="text" id="listFilter" 
+             placeholder="店名・JAN・商品名で絞り込み..." 
+             oninput="filterList()"
+             style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
+    </div>
+    /*ボタン非表示中*/
+    <div style="display:none; gap:8px; margin-bottom:10px;">
       <button id="btnStockAll" class="btn-stock-large" style="flex:1;" onclick="fetchSelectedStocks()">チェック商品在庫確認</button>
       <button id="btnComplete_pageAll" class="btn-bulk" style="flex:1; margin:0;" onclick="bulkDelete('pageAll')">データ削除</button>
     </div>

@@ -1910,35 +1910,34 @@ function updateFilterOptions() {
 
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
-    // データ行であることを確認（0:チェック, 1:店舗, 2:商品）
     if (cells.length >= 3) {
       
       // --- 1. 店舗情報 (cells[1]) ---
       let shopFull = cells[1]?.innerText.trim() || "";
-      let shopName = shopFull.split('\n')[0].trim(); // 1行目を表示名に
+      let shopLines = shopFull.split('\n');
+      let shopName = shopLines[0].trim(); // 1行目を「店名」として採用
       
-      // 6桁または8桁の数字（店番+個人番号）を抽出
+      // 6桁または8桁の数字を「店コード」として抽出
       let shopCodeMatch = shopFull.match(/\d{6,8}/);
-      // 数字が見つかればそれをキーに、なければ店名そのものをキーにする
-      let shopKey = shopCodeMatch ? shopCodeMatch[0] : shopName;
+      let shopCode = shopCodeMatch ? shopCodeMatch[0] : shopName;
 
+      // Mapには「コード」をキーにして「店名」を保存
       if (shopName) {
-        shopMap.set(shopKey, shopName);
+        shopMap.set(shopCode, shopName);
       }
 
       // --- 2. 商品情報 (cells[2]) ---
-      // 商品名は「数字を除去」するのではなく、単純に「1行目」を抜く
       let itemFull = cells[2]?.innerText.trim() || "";
       let itemLines = itemFull.split('\n');
-      let itemName = itemLines[0].trim(); // ここで純粋に1行目を取得
+      let itemName = itemLines[0].trim(); // 1行目を「商品名」として採用
       
-      // JAN（8〜14桁）を抽出。見つかればそれをキーに、なければ商品名をキーに
+      // 8〜14桁の数字を「JAN」として抽出
       let janMatch = itemFull.match(/\d{8,14}/);
-      let itemKey = janMatch ? janMatch[0] : itemName;
+      let janCode = janMatch ? janMatch[0] : itemName;
 
-      // 【重要】商品名が存在すれば必ず追加する
+      // Mapには「JAN」をキーにして「商品名」を保存
       if (itemName) {
-        nameMap.set(itemKey, itemName);
+        nameMap.set(janCode, itemName);
       }
     }
   });
@@ -1946,31 +1945,32 @@ function updateFilterOptions() {
   const shopSelect = document.getElementById('filterShop');
   const nameSelect = document.getElementById('filterName');
 
-  // 店舗プルダウン更新
+  // 店舗プルダウン：表示は「店名」、値は「コード」
   if (shopSelect) {
-    shopSelect.innerHTML = '<option value="">店舗選択</option>';
+    shopSelect.innerHTML = '<option value="">全店舗表示</option>';
+    // 店名(val)で五十音順にソート
     const sortedShops = Array.from(shopMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    sortedShops.forEach(([key, name]) => {
-      shopSelect.innerHTML += `<option value="${key}">${name}</option>`;
+    sortedShops.forEach(([code, name]) => {
+      // <option value="コード">店名</option> の形にする
+      shopSelect.innerHTML += `<option value="${code}">${name}</option>`;
     });
   }
 
-  // 商品プルダウン更新
+  // 商品プルダウン：表示は「商品名」、値は「JAN」
   if (nameSelect) {
-    nameSelect.innerHTML = '<option value="">商品選択</option>';
+    nameSelect.innerHTML = '<option value="">全商品表示</option>';
+    // 商品名(val)で五十音順にソート
     const sortedNames = Array.from(nameMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    sortedNames.forEach(([key, name]) => {
-      // 表示名(name)が空でない場合のみ追加
-      if (name) {
-        nameSelect.innerHTML += `<option value="${key}">${name}</option>`;
-      }
+    sortedNames.forEach(([jan, name]) => {
+      // <option value="JAN">商品名</option> の形にする
+      nameSelect.innerHTML += `<option value="${jan}">${name}</option>`;
     });
   }
 }
 
- function filterList() {
-  const shopQuery = document.getElementById('filterShop').value;
-  const nameQuery = document.getElementById('filterName').value;
+function filterList() {
+  const shopVal = document.getElementById('filterShop').value; // ここにコードが入る
+  const itemVal = document.getElementById('filterName').value; // ここにJANが入る
   const janInput = document.getElementById('filterJan').value.trim();
 
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');
@@ -1978,15 +1978,14 @@ function updateFilterOptions() {
   rows.forEach(row => {
     const rowText = row.innerText;
     
-    // 各条件の判定（空なら常にtrue）
-    const matchShop = !shopQuery || rowText.includes(shopQuery);
-    const matchName = !nameQuery || rowText.includes(nameQuery);
-    const matchJan  = !janInput  || rowText.includes(janInput);
+    // 行全体のテキストの中に、選択された「コード」や「JAN」が含まれているか
+    const matchShop = !shopVal || rowText.includes(shopVal);
+    const matchItem = !itemVal || rowText.includes(itemVal);
+    const matchJan  = !janInput || rowText.includes(janInput);
 
-    // すべて一致する場合のみ表示
-    row.style.display = (matchShop && matchName && matchJan) ? "" : "none";
+    row.style.display = (matchShop && matchItem && matchJan) ? "" : "none";
   });
-} 
+}
   
 </script>
 </body>

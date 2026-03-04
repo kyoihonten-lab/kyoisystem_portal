@@ -554,16 +554,16 @@ button:disabled {
   <div style="display:flex; gap:8px; width: 100%; box-sizing: border-box;">
     <select id="filterShop" onchange="filterList()" 
             style="flex: 1; min-width: 0; height: 48px; padding: 0 5px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; background: white;">
-      <option value="">店舗選択</option>
+      <option value="">全店舗表示</option>
     </select>
 
     <select id="filterName" onchange="filterList()" 
             style="flex: 1; min-width: 0; height: 48px; padding: 0 5px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; background: white;">
-      <option value="">商品選択</option>
+      <option value="">全商品表示</option>
     </select>
   </div>
 
-  <input type="text" id="filterJan" placeholder="JANコード入力" oninput="filterList()" 
+  <input type="tel" id="filterJan" placeholder="JANコード入力" oninput="filterList()" ; inputmode="numeric"; pattern="[0-9]*"; style="width: 150px;
          style="width: 100%; height: 48px; padding: 0 15px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box;">
 </div>
 

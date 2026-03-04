@@ -1912,30 +1912,34 @@ function updateFilterOptions() {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 3) {
       
-      // --- 1. 店舗情報 (cells[1]) ---
+      // --- 1. 店舗情報抽出 ---
       let shopFull = cells[1]?.innerText.trim() || "";
       let shopLines = shopFull.split('\n');
-      let shopName = shopLines[0].trim(); // 1行目をそのまま「表示名」にする
       
-      // 6桁または8桁の数字を「検索キー」として抽出
+      // 6〜8桁の数字をコードとする
       let shopCodeMatch = shopFull.match(/\d{6,8}/);
-      let shopKey = shopCodeMatch ? shopCodeMatch[0] : shopName;
+      let shopCode = shopCodeMatch ? shopCodeMatch[0] : "";
 
-      if (shopName) {
-        shopMap.set(shopKey, shopName); // [キー: コード, 値: 名前]
+      // 数字だけの行や空行を除外して、最初に「日本語」が含まれる行を店名にする
+      let shopName = shopLines.find(l => /[ぁ-んァ-ヶ亜-熙]/.test(l)) || shopLines.find(l => l.trim().length > 0 && !/^\d+$/.test(l));
+
+      if (shopName && shopCode) {
+        shopMap.set(shopCode, shopName.trim());
       }
 
-      // --- 2. 商品情報 (cells[2]) ---
+      // --- 2. 商品情報抽出 ---
       let itemFull = cells[2]?.innerText.trim() || "";
       let itemLines = itemFull.split('\n');
-      let itemName = itemLines[0].trim(); // 1行目をそのまま「表示名」にする
       
-      // 8〜14桁の数字を「検索キー」として抽出
+      // 8〜14桁の数字をJANとする
       let janMatch = itemFull.match(/\d{8,14}/);
-      let itemKey = janMatch ? janMatch[0] : itemName;
+      let janCode = janMatch ? janMatch[0] : "";
 
-      if (itemName) {
-        nameMap.set(itemKey, itemName); // [キー: JAN, 値: 名前]
+      // 同様に、日本語が含まれる行を商品名にする
+      let itemName = itemLines.find(l => /[ぁ-んァ-ヶ亜-熙]/.test(l)) || itemLines.find(l => l.trim().length > 0 && !/^\d+$/.test(l));
+
+      if (itemName && janCode) {
+        nameMap.set(janCode, itemName.trim());
       }
     }
   });
@@ -1943,30 +1947,24 @@ function updateFilterOptions() {
   const shopSelect = document.getElementById('filterShop');
   const nameSelect = document.getElementById('filterName');
 
-  // 店舗プルダウン：表示は「名前」、値(value)は「コード」
-  if (shopSelect) {
-    shopSelect.innerHTML = '<option value="">店舗選択</option>';
-    const sortedShops = Array.from(shopMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    sortedShops.forEach(([key, name]) => {
-      // 画面には name(店名) を出し、裏の value に key(コード) を持たせる
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = name;
-      shopSelect.appendChild(opt);
-    });
-  }
+  // プルダウンへの反映（共通処理）
+  const renderOptions = (selectObj, dataMap, defaultText) => {
+    if (!selectObj) return;
+    selectObj.innerHTML = `<option value="">${defaultText}</option>`;
+    
+    // 名前のあいうえお順にソートして追加
+    Array.from(dataMap.entries())
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .forEach(([key, name]) => {
+        let opt = document.createElement('option');
+        opt.value = key;     // 裏側：数字
+        opt.textContent = name; // 見た目：日本語
+        selectObj.appendChild(opt);
+      });
+  };
 
-  // 商品プルダウン：表示は「名前」、値(value)は「JAN」
-  if (nameSelect) {
-    nameSelect.innerHTML = '<option value="">商品選択</option>';
-    const sortedNames = Array.from(nameMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-    sortedNames.forEach(([key, name]) => {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = name;
-      nameSelect.appendChild(opt);
-    });
-  }
+  renderOptions(shopSelect, shopMap, "店舗選択");
+  renderOptions(nameSelect, nameMap, "商品選択");
 }
   
 function filterList() {

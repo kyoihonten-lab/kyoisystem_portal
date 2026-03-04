@@ -1955,7 +1955,6 @@ function updateFilterOptions() {
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 3) {
-      
       // --- 1. 店舗情報抽出 ---
       let shopFull = cells[1]?.innerText.trim() || "";
       let shopLines = shopFull.split('\n');
@@ -1973,19 +1972,15 @@ function updateFilterOptions() {
       let janMatch = itemFull.match(/\d{8,14}/);
       let janCode = janMatch ? janMatch[0] : "";
       
-      // 日本語が含まれる行を探す
       let itemName = itemLines.find(l => /[ぁ-んァ-ヶ亜-熙]/.test(l)) || itemLines.find(l => l.trim().length > 0 && !/^\d+$/.test(l));
       
       if (itemName) {
         itemName = itemName.trim();
-        
-        // 【追加ロジック】「未登録の商品」の場合はJANを横に付ける
         if (itemName === "未登録の商品" && janCode) {
           itemName = `${janCode} ${itemName}`;
         }
-        
         if (janCode) {
-          nameMap.set(janCode, itemName);
+          nameMap.set(janCode, itemName); // keyをJAN、valueを商品名に
         }
       }
     }
@@ -1994,22 +1989,32 @@ function updateFilterOptions() {
   const shopSelect = document.getElementById('filterShop');
   const nameSelect = document.getElementById('filterName');
 
-  const renderOptions = (selectObj, dataMap, defaultText) => {
+  // --- 修正箇所：並び替えロジックの追加 ---
+  const renderOptions = (selectObj, dataMap, defaultText, sortType) => {
     if (!selectObj) return;
     selectObj.innerHTML = `<option value="">${defaultText}</option>`;
     
-    Array.from(dataMap.entries())
-      .sort((a, b) => Number(a[0]) - Number(b[0])) // コード昇順
-      .forEach(([key, name]) => {
-        let opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = name;
-        selectObj.appendChild(opt);
-      });
+    let entries = Array.from(dataMap.entries());
+
+    if (sortType === 'name') {
+      // 【商品名用】あいうえお順（名前の部分 a[1] で比較）
+      entries.sort((a, b) => a[1].localeCompare(b[1], 'ja'));
+    } else {
+      // 【店舗用】コード昇順（a[0] で比較）
+      entries.sort((a, b) => Number(a[0]) - Number(b[0]));
+    }
+    
+    entries.forEach(([key, name]) => {
+      let opt = document.createElement('option');
+      opt.value = (sortType === 'name') ? name : key; // 商品名フィルタは名前でフィルタリングする場合が多いのでnameをvalueに（環境に合わせて調整可）
+      opt.textContent = name;
+      selectObj.appendChild(opt);
+    });
   };
 
-  renderOptions(shopSelect, shopMap, "全店舗表示");
-  renderOptions(nameSelect, nameMap, "全商品表示");
+  // 店舗はコード順、商品は名前順で実行
+  renderOptions(shopSelect, shopMap, "全店舗表示", "code");
+  renderOptions(nameSelect, nameMap, "全商品表示", "name");
 }
   
 function filterList() {

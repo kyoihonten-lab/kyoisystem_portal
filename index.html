@@ -1175,24 +1175,40 @@ function getStockAllHeader() {
 }
 
 /**
- * 📊 モード別行HTML生成 (レイアウト維持・数量更新演出の復活版)
+ * 📊 モード別行HTML生成 (当日以前を確実に赤字にする修正版)
  */
 function getRowHtmlByMode(mode, item, pageId) {
-  const today = new Date(); today.setHours(0,0,0,0);
+  // 1. 今日の日付（0時0分0秒）を確実に取得
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
   const dateStr = item.expiry || "";
-  const expiryDate = new Date(dateStr.replace(/\//g, '-'));
-  const isExpired = (dateStr && !isNaN(expiryDate) && expiryDate <= today);
-  const highlightColor = isExpired ? "#e74c3c" : "#2c3e50";
+  let isAlert = false;
+
+  // 2. 日付の判定ロジックを強化
+  if (dateStr) {
+    // スラッシュをハイフンに変換してDateオブジェクト化
+    const expiryDate = new Date(dateStr.replace(/\//g, '-'));
+    // 時間を00:00:00にリセットして純粋に「日」で比較
+    const pureExpiry = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate());
+    
+    if (!isNaN(pureExpiry.getTime())) {
+      isAlert = pureExpiry <= today; // 当日以前ならtrue
+    }
+  }
+
+  // 3. 配色の決定
+  const highlightColor = isAlert ? "#e74c3c" : "#2c3e50"; // 赤 or 濃い紺
   
   const myShopCode = document.getElementById('shopInput').value;
 
-  // --- 1. チェックボックス（全リストで表示） ---
+  // --- チェックボックス ---
   const checkbox = `
     <td class="col-check">
       <input type="checkbox" class="bulk-check" data-id="${item.recordId}" data-jan="${item.barcode}" data-shop="${item.shopCode || ''}">
     </td>`;
   
-  // --- 2. 在庫表示の制御 ---
+  // --- 在庫表示 ---
   let stockDisp = "";
   if (pageId === 'pageAll') {
     const stockClass = "stock-badge stock-val hidden-initial";
@@ -1206,10 +1222,10 @@ function getRowHtmlByMode(mode, item, pageId) {
     stockDisp = `<div class="stock-badge">理論在庫: ${stockNum}</div>`;
   }
 
-  // --- 3. レイアウト生成 ---
+  // --- レイアウト生成 ---
   if (mode === 'scan' || mode === 'stockAll') {
     return `
-      <tr class="${isExpired ? 'danger' : ''}">
+      <tr class="${isAlert ? 'danger' : ''}">
         ${checkbox}
         <td class="col-info1">
           <div class="shop-label-code">${item.shopCode || ''}</div>

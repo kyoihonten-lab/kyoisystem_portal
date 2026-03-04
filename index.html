@@ -637,45 +637,68 @@ window.onload = function() {
   // ここに loginBtn.onclick ... は書かなくて大丈夫です。
 };
   
-  /**
- * 🔑 ログイン実行処理
+/**
+ * 🔑 ログイン実行処理（ボタン無効化・半透明化 追加版）
  */
 async function execLogin() {
   const shopCode = document.getElementById('loginShopCode').value;
   const password = document.getElementById('loginPassword').value;
   const msgEl = document.getElementById('loginMessage');
+  // ログインボタンを取得（selectorは環境に合わせて調整してください）
+  const loginBtn = document.querySelector('#loginOverlay button[onclick="execLogin()"]') || 
+                   document.querySelector('#loginOverlay button');
 
   if (!shopCode || !password) {
     msgEl.innerText = "両方入力してください";
     return;
   }
 
+  // --- 【追加】ボタンをロック（半透明 & クリック不可） ---
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.style.opacity = "0.5";
+    loginBtn.style.cursor = "not-allowed";
+  }
+
   msgEl.innerText = "認証中...";
   msgEl.style.color = "#3498db";
 
-  const res = await callGAS("checkLogin", { shopCode, password });
+  try {
+    const res = await callGAS("checkLogin", { shopCode, password });
 
-  if (res && res.success) {
-    const overlay = document.getElementById('loginOverlay');
-    overlay.style.setProperty('display', 'none', 'important');
-    overlay.style.pointerEvents = 'none';
+    if (res && res.success) {
+      const overlay = document.getElementById('loginOverlay');
+      overlay.style.setProperty('display', 'none', 'important');
+      overlay.style.pointerEvents = 'none';
+      
+      const shopInput = document.getElementById('shopInput');
+      shopInput.readOnly = false; 
+      shopInput.disabled = false;
+      shopInput.value = shopCode;
+      
+      processShopCode(); 
+      console.log("Login Success:", res.shopName);
+    } else {
+      // ログイン失敗：メッセージを表示し、ボタンを元に戻す
+      msgEl.innerText = res ? res.message : "通信エラーが発生しました";
+      msgEl.style.color = "#e74c3c";
+      
+      // --- 【追加】ボタンを復活させる ---
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.style.opacity = "1.0";
+        loginBtn.style.cursor = "pointer";
+      }
+    }
+  } catch (e) {
+    console.error("Login Error:", e);
+    msgEl.innerText = "システムエラーが発生しました";
     
-    // --- ここから修正箇所 ---
-    const shopInput = document.getElementById('shopInput');
-    
-    // 重要：前回のロック状態を強制解除してから値をセットする
-    shopInput.readOnly = false; 
-    shopInput.disabled = false;
-    shopInput.value = shopCode;
-    
-    // 店名取得を呼び出す
-    processShopCode(); 
-    // ----------------------
-    
-    console.log("Login Success:", res.shopName);
-  } else {
-    msgEl.innerText = res ? res.message : "通信エラーが発生しました";
-    msgEl.style.color = "#e74c3c";
+    // --- 【追加】エラー時もボタンを復活させる ---
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.style.opacity = "1.0";
+    }
   }
 }
 

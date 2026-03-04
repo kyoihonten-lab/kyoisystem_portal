@@ -1911,16 +1911,11 @@ function updateFilterOptions() {
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
     if (cells.length >= 3) {
-      
       // --- 1. 店舗情報抽出 ---
       let shopFull = cells[1]?.innerText.trim() || "";
       let shopLines = shopFull.split('\n');
-      
-      // 6〜8桁の数字をコードとする
       let shopCodeMatch = shopFull.match(/\d{6,8}/);
       let shopCode = shopCodeMatch ? shopCodeMatch[0] : "";
-
-      // 数字だけの行や空行を除外して、最初に「日本語」が含まれる行を店名にする
       let shopName = shopLines.find(l => /[ぁ-んァ-ヶ亜-熙]/.test(l)) || shopLines.find(l => l.trim().length > 0 && !/^\d+$/.test(l));
 
       if (shopName && shopCode) {
@@ -1930,12 +1925,8 @@ function updateFilterOptions() {
       // --- 2. 商品情報抽出 ---
       let itemFull = cells[2]?.innerText.trim() || "";
       let itemLines = itemFull.split('\n');
-      
-      // 8〜14桁の数字をJANとする
       let janMatch = itemFull.match(/\d{8,14}/);
       let janCode = janMatch ? janMatch[0] : "";
-
-      // 同様に、日本語が含まれる行を商品名にする
       let itemName = itemLines.find(l => /[ぁ-んァ-ヶ亜-熙]/.test(l)) || itemLines.find(l => l.trim().length > 0 && !/^\d+$/.test(l));
 
       if (itemName && janCode) {
@@ -1947,18 +1938,20 @@ function updateFilterOptions() {
   const shopSelect = document.getElementById('filterShop');
   const nameSelect = document.getElementById('filterName');
 
-  // プルダウンへの反映（共通処理）
   const renderOptions = (selectObj, dataMap, defaultText) => {
     if (!selectObj) return;
     selectObj.innerHTML = `<option value="">${defaultText}</option>`;
     
-    // 名前のあいうえお順にソートして追加
+    // 【修正ポイント】キー（コード/JAN）で昇順ソート
     Array.from(dataMap.entries())
-      .sort((a, b) => a[1].localeCompare(b[1]))
+      .sort((a, b) => {
+        // 数字として比較（文字列でも数字順に並ぶように）
+        return Number(a[0]) - Number(b[0]);
+      })
       .forEach(([key, name]) => {
         let opt = document.createElement('option');
-        opt.value = key;     // 裏側：数字
-        opt.textContent = name; // 見た目：日本語
+        opt.value = key;
+        opt.textContent = name;
         selectObj.appendChild(opt);
       });
   };

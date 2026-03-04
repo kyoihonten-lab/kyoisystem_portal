@@ -1544,11 +1544,15 @@ async function refreshPage(pageId) {
     return;
   }
   
-  if (!shopCode && pageId !== 'pageAll') {
-    alert("店コードを入力してください");
+if (!shopCode && pageId !== 'pageAll') {
+    const overlay = document.getElementById('loginOverlay');
+    // すでに表示されている場合は何もしない、非表示の時だけ表示する
+    if (overlay && overlay.style.display !== 'flex') {
+      overlay.style.display = 'flex';
+    }
     return;
   }
-
+  
   if (targetBtn) {
     targetBtn.disabled = true;
     targetBtn.innerText = "更新中...";

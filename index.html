@@ -1905,34 +1905,40 @@ function confirmLogout() {
 
 function updateFilterOptions() {
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');
-  const shopMap = new Map(); // 店コード => "店名"
-  const nameMap = new Map(); // JAN => "商品名"
+  const shopMap = new Map(); 
+  const nameMap = new Map(); 
 
   rows.forEach(row => {
     const cells = row.querySelectorAll('td');
+    // データ行であることを確認（0:チェック, 1:店舗, 2:商品）
     if (cells.length >= 3) {
+      
       // --- 1. 店舗情報 (cells[1]) ---
       let shopFull = cells[1]?.innerText.trim() || "";
-      let shopLines = shopFull.split('\n');
-      let shopName = shopLines[0]; // 1行目を店名とする
-      let shopCodeMatch = shopFull.match(/\d{3,4}/); // 3〜4桁の数字をコードとする
-      let shopCode = shopCodeMatch ? shopCodeMatch[0] : shopName;
+      let shopName = shopFull.split('\n')[0].trim(); // 1行目を表示名に
+      
+      // 6桁または8桁の数字（店番+個人番号）を抽出
+      let shopCodeMatch = shopFull.match(/\d{6,8}/);
+      // 数字が見つかればそれをキーに、なければ店名そのものをキーにする
+      let shopKey = shopCodeMatch ? shopCodeMatch[0] : shopName;
 
-      if (shopName) shopMap.set(shopCode, shopName);
+      if (shopName) {
+        shopMap.set(shopKey, shopName);
+      }
 
       // --- 2. 商品情報 (cells[2]) ---
+      // 商品名は「数字を除去」するのではなく、単純に「1行目」を抜く
       let itemFull = cells[2]?.innerText.trim() || "";
       let itemLines = itemFull.split('\n');
-      let itemName = itemLines[0].replace(/\d{8,14}/g, '').trim(); // 1行目からJANを除いたものを商品名とする
-      let janMatch = itemFull.match(/\d{8,14}/); // 8〜14桁の数字をJANとする
-      let janCode = janMatch ? janMatch[0] : "";
+      let itemName = itemLines[0].trim(); // ここで純粋に1行目を取得
+      
+      // JAN（8〜14桁）を抽出。見つかればそれをキーに、なければ商品名をキーに
+      let janMatch = itemFull.match(/\d{8,14}/);
+      let itemKey = janMatch ? janMatch[0] : itemName;
 
-      // JANがあるものだけリストに載せる（リストが出ない原因対策）
-      if (itemName && janCode) {
-        nameMap.set(janCode, itemName);
-      } else if (itemName) {
-        // JANが取れなくても、商品名自体をキーにして載せる
-        nameMap.set(itemName, itemName);
+      // 【重要】商品名が存在すれば必ず追加する
+      if (itemName) {
+        nameMap.set(itemKey, itemName);
       }
     }
   });
@@ -1940,25 +1946,29 @@ function updateFilterOptions() {
   const shopSelect = document.getElementById('filterShop');
   const nameSelect = document.getElementById('filterName');
 
+  // 店舗プルダウン更新
   if (shopSelect) {
     shopSelect.innerHTML = '<option value="">店舗選択</option>';
-    // 店名を表示、valueにコードを入れる
-    Array.from(shopMap.entries()).sort().forEach(([code, name]) => {
-      shopSelect.innerHTML += `<option value="${code}">${name}</option>`;
+    const sortedShops = Array.from(shopMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+    sortedShops.forEach(([key, name]) => {
+      shopSelect.innerHTML += `<option value="${key}">${name}</option>`;
     });
   }
 
+  // 商品プルダウン更新
   if (nameSelect) {
     nameSelect.innerHTML = '<option value="">商品選択</option>';
-    // 商品名を表示、valueにJANを入れる
     const sortedNames = Array.from(nameMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
     sortedNames.forEach(([key, name]) => {
-      nameSelect.innerHTML += `<option value="${key}">${name}</option>`;
+      // 表示名(name)が空でない場合のみ追加
+      if (name) {
+        nameSelect.innerHTML += `<option value="${key}">${name}</option>`;
+      }
     });
   }
 }
 
-function filterList() {
+ function filterList() {
   const shopQuery = document.getElementById('filterShop').value;
   const nameQuery = document.getElementById('filterName').value;
   const janInput = document.getElementById('filterJan').value.trim();

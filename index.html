@@ -1931,32 +1931,46 @@ function filterList() {
 }
 
 
-/**
- * 🔍 3つの条件で絞り込む（クラス名に頼らない版）
- */
-function filterList() {
-  const shopQuery = document.getElementById('filterShop').value;
-  const nameQuery = document.getElementById('filterName').value;
-  const janQuery = document.getElementById('filterJan').value;
-
+function updateFilterOptions() {
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');
+  const shopSet = new Set();
+  const nameSet = new Set();
 
   rows.forEach(row => {
-    const cells = row.querySelectorAll('td');
-    if (cells.length > 2) {
-      const shopText = cells[1]?.innerText.trim();
-      const nameText = cells[2]?.innerText.trim();
-      // JANは大抵商品名と同じセルか、その近くにあるはずなので行全体から探す
-      const rowText = row.innerText;
+    // クラス名でピンポイントに取得（もしクラス名がなければ cells[1] を使う）
+    // 店舗名（例: "101(稲沢店)" のような部分だけを抽出）
+    let shopText = row.querySelector('.shop-label-code')?.innerText.trim() 
+                || row.querySelectorAll('td')[1]?.innerText.split('\n')[0].trim(); 
+    
+    // 商品名（改行が含まれる場合は最初の1行目だけ取得）
+    let nameText = row.querySelector('.item-name-text')?.innerText.trim()
+                || row.querySelectorAll('td')[2]?.innerText.split('\n')[0].trim();
 
-      const matchShop = !shopQuery || shopText === shopQuery;
-      const matchName = !nameQuery || nameText === nameQuery;
-      const matchJan = !janQuery || rowText.includes(janQuery);
-
-      row.style.display = (matchShop && matchName && matchJan) ? "" : "none";
-    }
+    if (shopText) shopSet.add(shopText);
+    if (nameText) nameSet.add(nameText);
   });
+
+  const shopSelect = document.getElementById('filterShop');
+  const nameSelect = document.getElementById('filterName');
+
+  if (shopSelect) {
+    shopSelect.innerHTML = '<option value="">店舗選択</option>';
+    Array.from(shopSet).sort().forEach(val => {
+      // 表示が長すぎる場合はカット（例: 15文字まで）
+      const displayVal = val.length > 15 ? val.substring(0, 15) + "..." : val;
+      shopSelect.innerHTML += `<option value="${val}">${displayVal}</option>`;
+    });
+  }
+
+  if (nameSelect) {
+    nameSelect.innerHTML = '<option value="">商品選択</option>';
+    Array.from(nameSet).sort().forEach(val => {
+      const displayVal = val.length > 15 ? val.substring(0, 15) + "..." : val;
+      nameSelect.innerHTML += `<option value="${val}">${displayVal}</option>`;
+    });
+  }
 }
+
 
 function updateFilterOptions() {
   const rows = document.querySelectorAll('#view_pageAll table tbody tr');

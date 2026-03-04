@@ -1914,30 +1914,32 @@ function updateFilterOptions() {
       
       // --- 1. 店舗情報 (cells[1]) ---
       let shopFull = cells[1]?.innerText.trim() || "";
-      let shopLines = shopFull.split('\n');
-      let shopName = shopLines[0].trim(); // 1行目を「店名」として採用
-      
-      // 6桁または8桁の数字を「店コード」として抽出
+      // 1行目を取得し、そこから「数字」を完全に消したものを「名前」とする
+      let shopName = shopFull.split('\n')[0].replace(/\d+/g, '').replace(/[()（）]/g, '').trim();
+      // 6桁または8桁の数字を「コード」とする
       let shopCodeMatch = shopFull.match(/\d{6,8}/);
-      let shopCode = shopCodeMatch ? shopCodeMatch[0] : shopName;
+      let shopCode = shopCodeMatch ? shopCodeMatch[0] : "";
 
-      // Mapには「コード」をキーにして「店名」を保存
-      if (shopName) {
+      // 名前とコードの両方がある場合のみセット（表示：名前 / 値：コード）
+      if (shopName && shopCode) {
         shopMap.set(shopCode, shopName);
+      } else if (shopName) {
+        // コードが取れない場合は名前を両方に
+        shopMap.set(shopName, shopName);
       }
 
       // --- 2. 商品情報 (cells[2]) ---
       let itemFull = cells[2]?.innerText.trim() || "";
-      let itemLines = itemFull.split('\n');
-      let itemName = itemLines[0].trim(); // 1行目を「商品名」として採用
-      
-      // 8〜14桁の数字を「JAN」として抽出
+      // 1行目を取得し、そこから「JAN（数字）」を完全に消したものを「名前」とする
+      let itemName = itemFull.split('\n')[0].replace(/\d{8,14}/g, '').trim();
+      // 8〜14桁の数字を「JAN」とする
       let janMatch = itemFull.match(/\d{8,14}/);
-      let janCode = janMatch ? janMatch[0] : itemName;
+      let janCode = janMatch ? janMatch[0] : "";
 
-      // Mapには「JAN」をキーにして「商品名」を保存
-      if (itemName) {
+      if (itemName && janCode) {
         nameMap.set(janCode, itemName);
+      } else if (itemName) {
+        nameMap.set(itemName, itemName);
       }
     }
   });
@@ -1945,24 +1947,23 @@ function updateFilterOptions() {
   const shopSelect = document.getElementById('filterShop');
   const nameSelect = document.getElementById('filterName');
 
-  // 店舗プルダウン：表示は「店名」、値は「コード」
+  // 店舗プルダウン：見た目を「名前」に強制
   if (shopSelect) {
-    shopSelect.innerHTML = '<option value="">全店舗表示</option>';
-    // 店名(val)で五十音順にソート
+    shopSelect.innerHTML = '<option value="">店舗選択</option>';
+    // 店名のあいうえお順で並び替え
     const sortedShops = Array.from(shopMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
     sortedShops.forEach(([code, name]) => {
-      // <option value="コード">店名</option> の形にする
+      // code(数字)がvalueに入り、name(文字)が画面に出る
       shopSelect.innerHTML += `<option value="${code}">${name}</option>`;
     });
   }
 
-  // 商品プルダウン：表示は「商品名」、値は「JAN」
+  // 商品プルダウン：見た目を「名前」に強制
   if (nameSelect) {
-    nameSelect.innerHTML = '<option value="">全商品表示</option>';
-    // 商品名(val)で五十音順にソート
+    nameSelect.innerHTML = '<option value="">商品選択</option>';
     const sortedNames = Array.from(nameMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
     sortedNames.forEach(([jan, name]) => {
-      // <option value="JAN">商品名</option> の形にする
+      // jan(数字)がvalueに入り、name(文字)が画面に出る
       nameSelect.innerHTML += `<option value="${jan}">${name}</option>`;
     });
   }

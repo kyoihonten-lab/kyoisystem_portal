@@ -728,6 +728,10 @@ async function startCamera() {
   const btn = document.getElementById('btnToggleScan');
   
   try {
+    // 【追加】カメラエリアまでスルスルッとスクロールさせる
+    if (viewport) {
+      viewport.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     codeReader.reset();
     const stream = await navigator.mediaDevices.getUserMedia({ 
       video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 

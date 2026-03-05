@@ -729,7 +729,7 @@ async function startCamera() {
   try {
     // カメラエリアまでスルスルッとスクロール
     if (viewport) {
-      viewport.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.scrollTo({ top: 0, behavior: 'auto' });
     }
 
     codeReader.reset();

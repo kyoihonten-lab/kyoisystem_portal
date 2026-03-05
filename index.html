@@ -720,18 +720,18 @@ async function toggleScanner() {
   }
 }
 
-/**
- * 📷 カメラ起動
- */
 async function startCamera() {
   const videoEl = document.getElementById('video');
   const btn = document.getElementById('btnToggleScan');
-  
+  // ↓ ここを追加しないと「viewport」が何かわからず止まってしまいます
+  const viewport = document.getElementById('interactive'); 
+
   try {
-    // 【追加】カメラエリアまでスルスルッとスクロールさせる
+    // カメラエリアまでスルスルッとスクロール
     if (viewport) {
       viewport.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
     codeReader.reset();
     const stream = await navigator.mediaDevices.getUserMedia({ 
       video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 

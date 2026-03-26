@@ -617,11 +617,8 @@ async function callGAS(action, params = {}) {
   } catch(e) { console.error(e); return null; }
 }
 
-/**
- * ページ読み込み時の初期化処理
- */
 window.onload = function() {
-  // 1. ログイン入力欄とメッセージを完全に空にする
+  // 1. お掃除（ここが重要！）
   const msgEl = document.getElementById('loginMessage');
   const shopInput = document.getElementById('loginShopCode');
   const passInput = document.getElementById('loginPassword');
@@ -630,29 +627,24 @@ window.onload = function() {
   if (shopInput) shopInput.value = "";
   if (passInput) passInput.value = "";
 
-  // 2. メインの入力欄（店名表示など）もリセットしておく
-  const mainShopInput = document.getElementById('shopInput');
-  if (mainShopInput) {
-    mainShopInput.value = "";
-    mainShopInput.readOnly = false;
-    mainShopInput.style.backgroundColor = ""; 
-  }
-
-  // 3. ログインオーバーレイを最前面に表示
+  // 2. 表示（これだけでOK）
   const overlay = document.getElementById('loginOverlay');
   if (overlay) {
     overlay.style.display = 'flex';
-    overlay.style.pointerEvents = 'auto'; // 操作を有効化
   }
-
-  console.log("System initialized: Login screen ready.");
+  
+  // 💡 ボタンの紐付けはHTML側（onclick="execLogin()"）で済んでいるので、
+  // ここに loginBtn.onclick ... は書かなくて大丈夫です。
 };
+  
+/**
+ * 🔑 ログイン実行処理（ボタン無効化・半透明化 追加版）
+ */
 async function execLogin() {
   const shopCode = document.getElementById('loginShopCode').value;
   const password = document.getElementById('loginPassword').value;
   const msgEl = document.getElementById('loginMessage');
-  
-  // ログインボタンを取得
+  // ログインボタンを取得（selectorは環境に合わせて調整してください）
   const loginBtn = document.querySelector('#loginOverlay button[onclick="execLogin()"]') || 
                    document.querySelector('#loginOverlay button');
 
@@ -661,7 +653,7 @@ async function execLogin() {
     return;
   }
 
-  // ボタンをロック（視覚的に分かりやすく）
+  // --- 【追加】ボタンをロック（半透明 & クリック不可） ---
   if (loginBtn) {
     loginBtn.disabled = true;
     loginBtn.style.opacity = "0.5";
@@ -675,44 +667,23 @@ async function execLogin() {
     const res = await callGAS("checkLogin", { shopCode, password });
 
     if (res && res.success) {
-      // 1. ログイン画面を非表示にする
       const overlay = document.getElementById('loginOverlay');
-      if (overlay) {
-        overlay.style.setProperty('display', 'none', 'important');
-        overlay.style.pointerEvents = 'none';
-      }
+      overlay.style.setProperty('display', 'none', 'important');
+      overlay.style.pointerEvents = 'none';
       
-      // 2. 画面上の要素を取得（ここでしっかり定義するのがコツ）
       const shopInput = document.getElementById('shopInput');
-      const shopNameEl = document.getElementById('shopName'); 
-
-      // 3. 店コードを反映
-      if (shopInput) {
-        shopInput.readOnly = false; 
-        shopInput.disabled = false;
-        shopInput.value = shopCode;
-      }
-
-      // 4. 店名を反映（GASから受け取った res.shopName を使う）
-      if (shopNameEl) {
-        shopNameEl.innerText = res.shopName || "店舗名不明";
-      }
-
-      // 5. 【重要】ログアウト後の再ログインのために、ボタンを復活させてから閉じる
-      if (loginBtn) {
-        loginBtn.disabled = false;
-        loginBtn.style.opacity = "1.0";
-        loginBtn.style.cursor = "pointer";
-      }
+      shopInput.readOnly = false; 
+      shopInput.disabled = false;
+      shopInput.value = shopCode;
       
+      processShopCode(); 
       console.log("Login Success:", res.shopName);
-      
     } else {
-      // ログイン失敗
+      // ログイン失敗：メッセージを表示し、ボタンを元に戻す
       msgEl.innerText = res ? res.message : "通信エラーが発生しました";
       msgEl.style.color = "#e74c3c";
       
-      // ボタンを復活させる
+      // --- 【追加】ボタンを復活させる ---
       if (loginBtn) {
         loginBtn.disabled = false;
         loginBtn.style.opacity = "1.0";
@@ -722,6 +693,8 @@ async function execLogin() {
   } catch (e) {
     console.error("Login Error:", e);
     msgEl.innerText = "システムエラーが発生しました";
+    
+    // --- 【追加】エラー時もボタンを復活させる ---
     if (loginBtn) {
       loginBtn.disabled = false;
       loginBtn.style.opacity = "1.0";
@@ -926,16 +899,9 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px;"><div class="loading-spinner"></div><br>読み込み中...</td></tr>';
   }
 
-// 5. GAS問い合わせ
-const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
-
-// shopInput（店コードの入力欄）から値を取得
-const shopCode = document.getElementById('shopInput') ? document.getElementById('shopInput').value : "";
-
-const params = { 
-  barcode: code,    // JANコードを 'barcode' として送る
-  shopCode: shopCode // 上で定義した shopCode をここにセット
-};
+  // 5. GAS問い合わせ
+  const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
+  const params = { code: code };
 
   const res = await callGAS(action, params);
   
@@ -946,14 +912,11 @@ const params = {
     return; 
   }
 
-// 6. 結果の流し込み
+  // 6. 結果の流し込み
   if (mode === 'scan') {
-    // 理論在庫の取得（存在しない場合は0）
-    const stockNum = res.stock || 0; 
-    // 商品名の後ろに理論在庫を結合して表示
-document.getElementById('itemNameDisplay').innerHTML = 
-      `${res.name || "未登録の商品"} <span style="font-size:0.85em; color:#7f8c8d; margin-left:8px;">(理論在庫: ${stockNum})</span>`;
-        document.getElementById('mainRegBtn').disabled = false;
+    document.getElementById('itemNameDisplay').innerText = res.name || "未登録の商品";
+    document.getElementById('mainRegBtn').disabled = false;
+
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     const dCode = res.janCode || code;

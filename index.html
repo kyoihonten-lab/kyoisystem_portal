@@ -901,7 +901,12 @@ async function processUnifiedFlow(code, mode) {
 
   // 5. GAS問い合わせ
   const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
-  const params = { code: code };
+// shopInput（店コードの入力欄）から値を取得してGASに渡す
+  const shopCode = document.getElementById('shopInput') ? document.getElementById('shopInput').value : "";
+  const params = { 
+    barcode: code, // GAS側の引数名に合わせて 'barcode' にするのが確実
+    shopCode: shopCode 
+  };
 
   const res = await callGAS(action, params);
   
@@ -917,9 +922,9 @@ async function processUnifiedFlow(code, mode) {
     // 理論在庫の取得（存在しない場合は0）
     const stockNum = res.stock || 0; 
     // 商品名の後ろに理論在庫を結合して表示
-    document.getElementById('itemNameDisplay').innerText = (res.name || "未登録の商品") + " (理論在庫: " + stockNum + ")";
-    document.getElementById('mainRegBtn').disabled = false;
-    
+document.getElementById('itemNameDisplay').innerHTML = 
+      `${res.name || "未登録の商品"} <span style="font-size:0.85em; color:#7f8c8d; margin-left:8px;">(理論在庫: ${stockNum})</span>`;
+        document.getElementById('mainRegBtn').disabled = false;
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     const dCode = res.janCode || code;

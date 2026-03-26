@@ -666,22 +666,26 @@ async function execLogin() {
   try {
     const res = await callGAS("checkLogin", { shopCode, password });
 
-    if (res && res.success) {
+if (res && res.success) {
       const overlay = document.getElementById('loginOverlay');
       overlay.style.setProperty('display', 'none', 'important');
       overlay.style.pointerEvents = 'none';
       
       const shopInput = document.getElementById('shopInput');
+      
+      // 💡 ここを追加！店名を表示するHTML要素を取得します
+      const shopNameEl = document.getElementById('shopName'); 
+
       shopInput.readOnly = false; 
       shopInput.disabled = false;
       shopInput.value = shopCode;
 
-      // ✅ ここがポイント！
-      // 再度 GAS に聞きに行かずに、ログインレスポンスに含まれる店名（res.shopName）を直接入れる
+      // ✅ 取得した要素に対して店名をセット
       if (shopNameEl) {
         shopNameEl.innerText = res.shopName || "店舗名不明";
       }
-      //processShopCode(); 
+      
+      // processShopCode(); // ← 不要になったのでコメントアウトのままでOK
       
       console.log("Login Success:", res.shopName);
     } else {

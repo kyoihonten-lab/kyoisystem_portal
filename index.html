@@ -912,11 +912,14 @@ async function processUnifiedFlow(code, mode) {
     return; 
   }
 
-  // 6. 結果の流し込み
+// 6. 結果の流し込み
   if (mode === 'scan') {
-    document.getElementById('itemNameDisplay').innerText = res.name || "未登録の商品";
+    // 理論在庫の取得（存在しない場合は0）
+    const stockNum = res.stock || 0; 
+    // 商品名の後ろに理論在庫を結合して表示
+    document.getElementById('itemNameDisplay').innerText = (res.name || "未登録の商品") + " (理論在庫: " + stockNum + ")";
     document.getElementById('mainRegBtn').disabled = false;
-
+    
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     const dCode = res.janCode || code;

@@ -637,14 +637,12 @@ window.onload = function() {
   // ここに loginBtn.onclick ... は書かなくて大丈夫です。
 };
   
-/**
- * 🔑 ログイン実行処理（ボタン無効化・半透明化 追加版）
- */
 async function execLogin() {
   const shopCode = document.getElementById('loginShopCode').value;
   const password = document.getElementById('loginPassword').value;
   const msgEl = document.getElementById('loginMessage');
-  // ログインボタンを取得（selectorは環境に合わせて調整してください）
+  
+  // ログインボタンを取得
   const loginBtn = document.querySelector('#loginOverlay button[onclick="execLogin()"]') || 
                    document.querySelector('#loginOverlay button');
 
@@ -653,7 +651,7 @@ async function execLogin() {
     return;
   }
 
-  // --- 【追加】ボタンをロック（半透明 & クリック不可） ---
+  // ボタンをロック（視覚的に分かりやすく）
   if (loginBtn) {
     loginBtn.disabled = true;
     loginBtn.style.opacity = "0.5";
@@ -666,34 +664,45 @@ async function execLogin() {
   try {
     const res = await callGAS("checkLogin", { shopCode, password });
 
-if (res && res.success) {
+    if (res && res.success) {
+      // 1. ログイン画面を非表示にする
       const overlay = document.getElementById('loginOverlay');
-      overlay.style.setProperty('display', 'none', 'important');
-      overlay.style.pointerEvents = 'none';
+      if (overlay) {
+        overlay.style.setProperty('display', 'none', 'important');
+        overlay.style.pointerEvents = 'none';
+      }
       
+      // 2. 画面上の要素を取得（ここでしっかり定義するのがコツ）
       const shopInput = document.getElementById('shopInput');
-      
-      // 💡 ここを追加！店名を表示するHTML要素を取得します
       const shopNameEl = document.getElementById('shopName'); 
 
-      shopInput.readOnly = false; 
-      shopInput.disabled = false;
-      shopInput.value = shopCode;
+      // 3. 店コードを反映
+      if (shopInput) {
+        shopInput.readOnly = false; 
+        shopInput.disabled = false;
+        shopInput.value = shopCode;
+      }
 
-      // ✅ 取得した要素に対して店名をセット
+      // 4. 店名を反映（GASから受け取った res.shopName を使う）
       if (shopNameEl) {
         shopNameEl.innerText = res.shopName || "店舗名不明";
       }
-      
-      // processShopCode(); // ← 不要になったのでコメントアウトのままでOK
+
+      // 5. 【重要】ログアウト後の再ログインのために、ボタンを復活させてから閉じる
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.style.opacity = "1.0";
+        loginBtn.style.cursor = "pointer";
+      }
       
       console.log("Login Success:", res.shopName);
+      
     } else {
-      // ログイン失敗：メッセージを表示し、ボタンを元に戻す
+      // ログイン失敗
       msgEl.innerText = res ? res.message : "通信エラーが発生しました";
       msgEl.style.color = "#e74c3c";
       
-      // --- 【追加】ボタンを復活させる ---
+      // ボタンを復活させる
       if (loginBtn) {
         loginBtn.disabled = false;
         loginBtn.style.opacity = "1.0";
@@ -703,8 +712,6 @@ if (res && res.success) {
   } catch (e) {
     console.error("Login Error:", e);
     msgEl.innerText = "システムエラーが発生しました";
-    
-    // --- 【追加】エラー時もボタンを復活させる ---
     if (loginBtn) {
       loginBtn.disabled = false;
       loginBtn.style.opacity = "1.0";

@@ -899,14 +899,16 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('stockAllTableBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px;"><div class="loading-spinner"></div><br>読み込み中...</td></tr>';
   }
 
-  // 5. GAS問い合わせ
-  const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
-// shopInput（店コードの入力欄）から値を取得してGASに渡す
-  const shopCode = document.getElementById('shopInput') ? document.getElementById('shopInput').value : "";
-  const params = { 
-    barcode: code, // GAS側の引数名に合わせて 'barcode' にするのが確実
-    shopCode: shopCode 
-  };
+// 5. GAS問い合わせ
+const action = (mode === 'stockAll') ? "getAllStoreStock" : "getProductMasterInfo";
+
+// shopInput（店コードの入力欄）から値を取得
+const shopCode = document.getElementById('shopInput') ? document.getElementById('shopInput').value : "";
+
+const params = { 
+  barcode: code,    // JANコードを 'barcode' として送る
+  shopCode: shopCode // 上で定義した shopCode をここにセット
+};
 
   const res = await callGAS(action, params);
   

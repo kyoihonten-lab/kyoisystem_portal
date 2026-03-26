@@ -675,8 +675,14 @@ async function execLogin() {
       shopInput.readOnly = false; 
       shopInput.disabled = false;
       shopInput.value = shopCode;
+
+      // ✅ ここがポイント！
+      // 再度 GAS に聞きに行かずに、ログインレスポンスに含まれる店名（res.shopName）を直接入れる
+      if (shopNameEl) {
+        shopNameEl.innerText = res.shopName || "店舗名不明";
+      }
+      //processShopCode(); 
       
-      processShopCode(); 
       console.log("Login Success:", res.shopName);
     } else {
       // ログイン失敗：メッセージを表示し、ボタンを元に戻す

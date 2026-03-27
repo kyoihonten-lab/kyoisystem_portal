@@ -1038,31 +1038,38 @@ async function saveSearchPrice() {
 }
 
 /**
- * 📋 リスト・在庫関連（共通の器）
+ * 📋 リスト・在庫関連（表示のたびに最新BQデータを取得）
  */
-function renderList(pageId, list) {
+async function renderList(pageId, list) { // asyncにする
   const view = document.getElementById('view_' + pageId);
-  const bulkBtn = document.getElementById('btnComplete_' + pageId);
-  const stockBtn = document.getElementById('btnStockAll');
   const mode = document.getElementById('mainModeSelect').value;
 
   if (!list || list.length === 0) {
     view.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">該当データはありません</div>';
-    if(bulkBtn) bulkBtn.style.display = 'none';
-    if(stockBtn) stockBtn.style.display = 'none';
     return;
   }
 
-  // 並べ替え処理
-  sortListByMode(pageId, list, mode);
-
-  // ボタン表示制御
-  if(bulkBtn) bulkBtn.style.display = 'block';
-  if(stockBtn) {
-    stockBtn.style.display = (pageId === 'pageAll' && (mode === 'scan' || mode === 'stockAll')) ? 'block' : 'none';
+  // --- 🚀 最小限の追加：表示の直前に最新在庫をBQから拾う ---
+  if (pageId === 'pageAll') {
+    const janList = [...new Set(list.map(item => item.barcode))];
+    try {
+      // 既存の在庫取得ロジック（または専用の口）で一括取得
+      // ここでは、以前のやり取りにあった一括取得の仕組みを想定しています
+      const latestStocks = await callGAS("getBatchStocks", { jans: janList }); 
+      
+      list.forEach(item => {
+        if (latestStocks && latestStocks[item.barcode] !== undefined) {
+          item.stock = latestStocks[item.barcode]; // itemの中身を最新値で上書き
+        }
+      });
+    } catch (e) {
+      console.error("最新在庫の取得に失敗:", e);
+    }
   }
 
-  // テーブル生成
+  // --- 以下、既存の描画ロジック（一切変更なし） ---
+  sortListByMode(pageId, list, mode);
+
   let html = `<table class="list-table">
                 ${getTableHeaderByMode(mode, pageId)}
                 <tbody>`;

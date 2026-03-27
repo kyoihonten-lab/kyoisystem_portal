@@ -945,19 +945,22 @@ async function processUnifiedFlow(code, mode) {
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     document.getElementById('sDetailJan').innerText = res.janCode || code;
+
     if (res.yahoo) {
+      // 価格と画像（これは既に出ているはず）
       document.getElementById('sDetailPrice').innerText = res.yahoo.price ? Number(res.yahoo.price).toLocaleString() : "---";
       document.getElementById('sDetailImage').src = res.yahoo.imageUrl || "";
-      
-      // 💡 追加：説明や在庫状況も表示させたい場合（HTML側にIDがある前提）
-      const descEl = document.getElementById('sDetailDesc');
-      if (descEl) descEl.innerText = res.yahoo.description || "";
-      
-      const stockEl = document.getElementById('sDetailStatus');
-      if (stockEl) stockEl.innerText = res.yahoo.inStock || "不明";
+
+      // 💡 追加：メーカーを表示（HTMLに sDetailBrand というIDがある前提）
+      const brandEl = document.getElementById('sDetailBrand');
+      if (brandEl) brandEl.innerText = res.yahoo.brand || "---";
+
+      // 💡 追加：Yahoo在庫ステータスを表示（HTMLに sDetailStatus というIDがある前提）
+      const statusEl = document.getElementById('sDetailStatus');
+      if (statusEl) statusEl.innerText = res.yahoo.inStock || "不明";
     }
     document.getElementById('mainSaveBtn').disabled = false;
-  } else if (mode === 'stockAll') {
+  }else if (mode === 'stockAll') {
     // 全店在庫モード（全機能維持）
     showAllStoreStock({
       janCode: res.janCode || code,

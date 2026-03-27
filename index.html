@@ -943,15 +943,20 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('mainRegBtn').disabled = false;
 
   } else if (mode === 'search') {
-    // 検索モードの処理（全機能維持）
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     document.getElementById('sDetailJan').innerText = res.janCode || code;
     if (res.yahoo) {
       document.getElementById('sDetailPrice').innerText = res.yahoo.price ? Number(res.yahoo.price).toLocaleString() : "---";
       document.getElementById('sDetailImage').src = res.yahoo.imageUrl || "";
+      
+      // 💡 追加：説明や在庫状況も表示させたい場合（HTML側にIDがある前提）
+      const descEl = document.getElementById('sDetailDesc');
+      if (descEl) descEl.innerText = res.yahoo.description || "";
+      
+      const stockEl = document.getElementById('sDetailStatus');
+      if (stockEl) stockEl.innerText = res.yahoo.inStock || "不明";
     }
     document.getElementById('mainSaveBtn').disabled = false;
-
   } else if (mode === 'stockAll') {
     // 全店在庫モード（全機能維持）
     showAllStoreStock({

@@ -638,13 +638,15 @@ window.onload = function() {
 };
   
 /**
- * 🔑 ログイン実行処理（ボタン無効化・半透明化 追加版）
+ * 🔑 ログイン実行処理（ボタン無効化・解除 完全版）
  */
 async function execLogin() {
   const shopCode = document.getElementById('loginShopCode').value;
   const password = document.getElementById('loginPassword').value;
   const msgEl = document.getElementById('loginMessage');
-  // ログインボタンを取得（selectorは環境に合わせて調整してください）
+  const shopDisplay = document.getElementById('shopDisplay'); // 店舗名表示用
+  
+  // ログインボタンを取得
   const loginBtn = document.querySelector('#loginOverlay button[onclick="execLogin()"]') || 
                    document.querySelector('#loginOverlay button');
 
@@ -653,7 +655,7 @@ async function execLogin() {
     return;
   }
 
-  // --- 【追加】ボタンをロック（半透明 & クリック不可） ---
+  // --- 1. ボタンをロック（二重押し防止） ---
   if (loginBtn) {
     loginBtn.disabled = true;
     loginBtn.style.opacity = "0.5";
@@ -667,23 +669,42 @@ async function execLogin() {
     const res = await callGAS("checkLogin", { shopCode, password });
 
     if (res && res.success) {
+      // --- 2. ログイン成功時の処理 ---
+      
+      // 画面を隠す
       const overlay = document.getElementById('loginOverlay');
       overlay.style.setProperty('display', 'none', 'important');
       overlay.style.pointerEvents = 'none';
       
+      // メイン画面の入力欄にセット
       const shopInput = document.getElementById('shopInput');
-      shopInput.readOnly = false; 
-      shopInput.disabled = false;
-      shopInput.value = shopCode;
+      if (shopInput) {
+        shopInput.value = shopCode;
+        shopInput.readOnly = true; // ログイン後は書き換え不可にするのが一般的
+      }
       
+      // 店舗名を表示
+      if (shopDisplay) {
+        shopDisplay.innerText = res.shopName || shopCode;
+      }
+
+      // ★重要：成功時もボタンを復活させておく（再ログイン時のフリーズ防止）
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.style.opacity = "1.0";
+        loginBtn.style.cursor = "pointer";
+      }
+
+      // 在庫取得などの後続処理へ
       processShopCode(); 
       console.log("Login Success:", res.shopName);
+      
     } else {
-      // ログイン失敗：メッセージを表示し、ボタンを元に戻す
-      msgEl.innerText = res ? res.message : "通信エラーが発生しました";
+      // --- 3. ログイン失敗時の処理 ---
+      msgEl.innerText = res ? res.message : "店コードまたはパスワードが違います";
       msgEl.style.color = "#e74c3c";
       
-      // --- 【追加】ボタンを復活させる ---
+      // ボタンを復活させる
       if (loginBtn) {
         loginBtn.disabled = false;
         loginBtn.style.opacity = "1.0";
@@ -691,13 +712,15 @@ async function execLogin() {
       }
     }
   } catch (e) {
+    // --- 4. 通信エラー等の例外処理 ---
     console.error("Login Error:", e);
-    msgEl.innerText = "システムエラーが発生しました";
+    msgEl.innerText = "通信エラーが発生しました";
+    msgEl.style.color = "#e74c3c";
     
-    // --- 【追加】エラー時もボタンを復活させる ---
     if (loginBtn) {
       loginBtn.disabled = false;
       loginBtn.style.opacity = "1.0";
+      loginBtn.style.cursor = "pointer";
     }
   }
 }
@@ -1922,7 +1945,7 @@ function sortStockData(type) {
 }
 
 /**
- * 🚪 ログアウト処理
+ * 🚪 ログアウト処理 (不具合修正・初期化 統合版)
  */
 function confirmLogout() {
   if (!confirm("ログアウトしますか？")) return;
@@ -1930,6 +1953,7 @@ function confirmLogout() {
   // 1. 店舗情報・グローバル変数を完全にリセット
   currentShopName = "";
   currentCode = "";
+  
   const shopInput = document.getElementById('shopInput');
   const shopDisplay = document.getElementById('shopDisplay');
   
@@ -1947,30 +1971,46 @@ function confirmLogout() {
   const scanArea = document.getElementById('scanActionArea');
   if (scanArea) scanArea.style.display = "none";
 
-  // 3. ログインフォームの中身を空にする
+  // 3. ログインフォームのリセット 
+  // ★重要：ボタンのフリーズを防ぐため、ここでボタンの状態も元に戻します
   document.getElementById('loginShopCode').value = "";
   document.getElementById('loginPassword').value = "";
-  document.getElementById('loginMessage').innerText = "";
+  
+  const msgEl = document.getElementById('loginMessage');
+  if (msgEl) {
+    msgEl.innerText = "ログアウトしました"; // または空文字 ""
+    msgEl.style.color = "#2ecc71";
+  }
+
+  const loginBtn = document.querySelector('#loginOverlay button');
+  if (loginBtn) {
+    loginBtn.disabled = false;
+    loginBtn.style.opacity = "1.0";
+    loginBtn.style.cursor = "pointer";
+  }
 
   // 4. ページ表示を「スキャン」に戻し、全てのリストをクリア
   showPage('pageScan'); 
   const views = ['view_pageList', 'view_pageSummary', 'view_pageAll'];
   views.forEach(id => {
     const el = document.getElementById(id);
-    if(el) el.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">ログインしてください</div>';
+    if(el) {
+      el.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">ログインしてください</div>';
+    }
   });
 
   // 5. ログインモーダルを再表示
   const overlay = document.getElementById('loginOverlay');
   if (overlay) {
     overlay.style.display = 'flex';
+    overlay.style.setProperty('display', 'flex', 'important'); // 強制適用
     overlay.style.pointerEvents = 'auto';
   }
 
-  // 6. ストレージの履歴も消去（任意）
+  // 6. ストレージの履歴も消去
   localStorage.removeItem('lastPage');
 
-  console.log("Logged out successfully");
+  console.log("Logged out successfully: All states cleared.");
 }
   
 function updateFilterOptions() {

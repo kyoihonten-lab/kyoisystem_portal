@@ -1040,7 +1040,7 @@ async function saveSearchPrice() {
 /**
  * 📋 リスト・在庫関連（表示のたびに最新BQデータを取得）
  */
-async function renderList(pageId, list) { // asyncにする
+async function renderList(pageId, list) { 
   const view = document.getElementById('view_' + pageId);
   const mode = document.getElementById('mainModeSelect').value;
 
@@ -1049,25 +1049,27 @@ async function renderList(pageId, list) { // asyncにする
     return;
   }
 
-  // --- 🚀 最小限の追加：表示の直前に最新在庫をBQから拾う ---
+  // --- 🚀 在庫取得ロジックの修正 ---
   if (pageId === 'pageAll') {
-    const janList = [...new Set(list.map(item => item.barcode))];
+    const janList = [...new Set(list.map(item => String(item.barcode).trim()))];
     try {
-      // 既存の在庫取得ロジック（または専用の口）で一括取得
-      // ここでは、以前のやり取りにあった一括取得の仕組みを想定しています
+      // GAS側を修正したので shopCode を送らなければ全店合計が返ります
       const latestStocks = await callGAS("getBatchStocks", { jans: janList }); 
       
       list.forEach(item => {
-        if (latestStocks && latestStocks[item.barcode] !== undefined) {
-          item.stock = latestStocks[item.barcode]; // itemの中身を最新値で上書き
-        }
+        const jan = String(item.barcode).trim();
+        // 💡 修正ポイント：数値キーと文字列キーの両方に対応
+        // GASから { "490...": 10 } の形式で返ってくる値を確実に拾う
+        const stockQty = latestStocks[jan] !== undefined ? latestStocks[jan] : (latestStocks[parseInt(jan, 10)] || 0);
+        
+        item.stock = stockQty; // ここで代入
       });
     } catch (e) {
       console.error("最新在庫の取得に失敗:", e);
     }
   }
 
-  // --- 以下、既存の描画ロジック（一切変更なし） ---
+  // --- 描画ロジック ---
   sortListByMode(pageId, list, mode);
 
   let html = `<table class="list-table">
@@ -1075,6 +1077,7 @@ async function renderList(pageId, list) { // asyncにする
                 <tbody>`;
   
   list.forEach(item => {
+    // 💡 ここで getRowHtmlByMode に渡す item には item.stock が注入されています
     html += getRowHtmlByMode(mode, item, pageId);
   });
   

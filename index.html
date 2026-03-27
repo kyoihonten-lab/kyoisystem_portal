@@ -902,6 +902,33 @@ async function processUnifiedFlow(code, mode) {
     document.getElementById('janDisplay').innerText = "JAN: " + code;
     document.getElementById('expiry').value = new Date().toISOString().split('T')[0];
   }
+  if (mode === 'scan') {
+    // 1. テキスト類を「確認中」にリセット
+    document.getElementById('itemNameDisplay').innerText = "商品確認中...";
+    document.getElementById('janDisplay').innerText = "JAN: " + code;
+    
+    // 2. Yahoo由来の詳細情報を空にする（ID名はHTMLに合わせて適宜調整してください）
+    const priceEl = document.getElementById('sDetailPrice');
+    const brandEl = document.getElementById('sDetailBrand');
+    const statusEl = document.getElementById('sDetailStatus');
+    const descEl = document.getElementById('sDetailDesc');
+    const imgEl = document.getElementById('sDetailImage');
+
+    if (priceEl) priceEl.innerText = "---";
+    if (brandEl) brandEl.innerText = "---";
+    if (statusEl) statusEl.innerText = "---";
+    if (descEl) descEl.innerText = "";
+    
+    // 3. 画像を即座にクリア（前の商品の残像を消す）
+    if (imgEl) imgEl.src = ""; 
+
+    // 4. 日付の初期値を今日にセット
+    document.getElementById('expiry').value = new Date().toISOString().split('T')[0];
+
+    // 5. 保存ボタンを一時ロック（誤登録防止）
+    const saveBtn = document.getElementById('mainSaveBtn');
+    if (saveBtn) saveBtn.disabled = true;
+  }
 
   // --- 5. 🚀 GAS問い合わせ (Promise.allで高速化) ---
   // 商品情報と全店在庫を同時に取得し、待ち時間を半分にします

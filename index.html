@@ -966,33 +966,35 @@ async function processUnifiedFlow(code, mode) {
       </div>`;
     nameEl.insertAdjacentHTML('afterend', stockHtml);
 
-    // ★重要: 登録リスト用のデータに「在庫数」を含めて一時保存
-    window.lastScannedItem = {
-      ...res,
-      stock: myStock,
-      barcode: code
-    };
-
     document.getElementById('mainRegBtn').disabled = false;
 
   } else if (mode === 'search') {
+    // 【検索モード】Yahooからの詳細情報をフル投入
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     document.getElementById('sDetailJan').innerText = res.janCode || code;
 
     if (res.yahoo) {
-      // 価格と画像（これは既に出ているはず）
-      document.getElementById('sDetailPrice').innerText = res.yahoo.price ? Number(res.yahoo.price).toLocaleString() : "---";
-      document.getElementById('sDetailImage').src = res.yahoo.imageUrl || "";
-
-      // 💡 追加：メーカーを表示（HTMLに sDetailBrand というIDがある前提）
+      // 1. 各要素を取得
+      const priceEl = document.getElementById('sDetailPrice');
+      const imgEl = document.getElementById('sDetailImage');
       const brandEl = document.getElementById('sDetailBrand');
-      if (brandEl) brandEl.innerText = res.yahoo.brand || "---";
-
-      // 💡 追加：Yahoo在庫ステータスを表示（HTMLに sDetailStatus というIDがある前提）
       const statusEl = document.getElementById('sDetailStatus');
+      const descEl = document.getElementById('sDetailDesc');
+
+      // 2. 値をセット（価格はカンマ区切り）
+      if (priceEl) priceEl.innerText = res.yahoo.price ? Number(res.yahoo.price).toLocaleString() : "---";
+      if (imgEl) imgEl.src = res.yahoo.imageUrl || "";
+      if (brandEl) brandEl.innerText = res.yahoo.brand || "---";
       if (statusEl) statusEl.innerText = res.yahoo.inStock || "不明";
+      if (descEl) descEl.innerText = res.yahoo.description || "";
     }
-    document.getElementById('mainSaveBtn').disabled = false;
+    
+    // 保存ボタンを活性化
+    const saveBtn = document.getElementById('mainSaveBtn');
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerText = "保存";
+    }
   }else if (mode === 'stockAll') {
     // 全店在庫モード（全機能維持）
     showAllStoreStock({

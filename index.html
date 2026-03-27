@@ -934,20 +934,18 @@ async function processUnifiedFlow(code, mode) {
     alert("データが取得できませんでした"); 
     return; 
   }
-
+  
   // 6. 結果の流し込み
- if (mode === 'scan') {
-    const nameEl = document.getElementById('itemNameDisplay'); // ★これが必要
+  if (mode === 'scan') {
+    const nameEl = document.getElementById('itemNameDisplay');
     nameEl.innerText = res.name || "未登録の商品";
 
     // --- 【追加】理論在庫の表示 ---
-    const stockVal = (res.stock !== undefined) ? res.stock : "---";
+    const stockVal = (res.stock !== undefined && res.stock !== null) ? res.stock : "---";
     
-    // 既存の表示があれば削除（連打対策）
     const oldStock = document.getElementById('localStockDisplay');
     if (oldStock) oldStock.remove();
 
-    // 商品名の下に小さく差し込み
     const stockHtml = `
       <div id="localStockDisplay" style="font-size: 0.85em; color: #7f8c8d; margin-top: 2px;">
         理論在庫: <span style="font-weight: bold; color: #2c3e50;">${stockVal}</span>
@@ -955,6 +953,7 @@ async function processUnifiedFlow(code, mode) {
     nameEl.insertAdjacentHTML('afterend', stockHtml);
 
     document.getElementById('mainRegBtn').disabled = false;
+
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     const dCode = res.janCode || code;
@@ -970,16 +969,12 @@ async function processUnifiedFlow(code, mode) {
     }
     document.getElementById('mainSaveBtn').disabled = false;
 
-}else if (mode === 'stockAll') {
-    // 💡 GAS側の返り値のプロパティ名を「res.name」と「res.itemName」両方に対応させる
-    // JANコードも、入力されたcode（JAN1/JAN2の可能性あり）ではなく、マスタのメインJAN(res.janCode)を優先する
+  } else if (mode === 'stockAll') {
     const finalName = res.name || res.itemName || "商品名不明";
     const finalJan = res.janCode || code; 
     
     document.getElementById('sStockName').innerText = "📦 " + finalName;
     
-    // 💡 取得した在庫データ(res.stocks)を整形
-    // BQからINTEGERで返ってきているため、念のため数値変換を確実に行う
     const formattedStocks = (res.stocks || []).map(s => ({
       shopInfo: s.shopInfo || "不明な店舗",
       stock: (s.stock === null || s.stock === undefined) ? 0 : Number(s.stock)
@@ -991,8 +986,6 @@ async function processUnifiedFlow(code, mode) {
       stocks: formattedStocks
     };
     
-    // 💡 全店在庫表示用の関数（showAllStoreStock）を呼び出し
-    // ※もしこの関数内でエラーが出ている場合は、この下の renderStockTableOnly も確認が必要
     showAllStoreStock(stockData);
   }
 }

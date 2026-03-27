@@ -936,10 +936,25 @@ async function processUnifiedFlow(code, mode) {
   }
 
   // 6. 結果の流し込み
-  if (mode === 'scan') {
-    document.getElementById('itemNameDisplay').innerText = res.name || "未登録の商品";
-    document.getElementById('mainRegBtn').disabled = false;
+ if (mode === 'scan') {
+    const nameEl = document.getElementById('itemNameDisplay'); // ★これが必要
+    nameEl.innerText = res.name || "未登録の商品";
 
+    // --- 【追加】理論在庫の表示 ---
+    const stockVal = (res.stock !== undefined) ? res.stock : "---";
+    
+    // 既存の表示があれば削除（連打対策）
+    const oldStock = document.getElementById('localStockDisplay');
+    if (oldStock) oldStock.remove();
+
+    // 商品名の下に小さく差し込み
+    const stockHtml = `
+      <div id="localStockDisplay" style="font-size: 0.85em; color: #7f8c8d; margin-top: 2px;">
+        理論在庫: <span style="font-weight: bold; color: #2c3e50;">${stockVal}</span>
+      </div>`;
+    nameEl.insertAdjacentHTML('afterend', stockHtml);
+
+    document.getElementById('mainRegBtn').disabled = false;
   } else if (mode === 'search') {
     document.getElementById('sDetailName').innerText = res.name || "名称不明";
     const dCode = res.janCode || code;

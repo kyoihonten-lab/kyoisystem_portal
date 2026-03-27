@@ -896,18 +896,30 @@ async function processUnifiedFlow(code, mode) {
     window.scrollTo({ top: targetEl.offsetTop - 160, behavior: 'smooth' });
   }, 100);
 
-  // --- 4. 初期表示（仮表示） ---
+  // --- 4. モード別の初期値セット & 前の情報のクリア ---
   if (mode === 'scan') {
+    // 【登録モード】メインの表示（itemNameDisplayなど）をリセット
     document.getElementById('itemNameDisplay').innerText = "商品確認中...";
     document.getElementById('janDisplay').innerText = "JAN: " + code;
     document.getElementById('expiry').value = new Date().toISOString().split('T')[0];
-  }
-  if (mode === 'scan') {
-    // 1. テキスト類を「確認中」にリセット
-    document.getElementById('itemNameDisplay').innerText = "商品確認中...";
-    document.getElementById('janDisplay').innerText = "JAN: " + code;
+
+    // 古い在庫表示（理論在庫ラベル）があれば削除しておく
+    const oldStock = document.getElementById('localStockDisplay');
+    if (oldStock) oldStock.remove();
+
+    // 登録ボタンは、データが届くまで念のためロック（誤送信防止）
+    const regBtn = document.getElementById('mainRegBtn');
+    if (regBtn) {
+      regBtn.disabled = true;
+      regBtn.innerText = "確認中...";
+    }
+
+  } else if (mode === 'search') {
+    // 【検索モード】詳細表示エリアをリセット
+    document.getElementById('sDetailName').innerText = "検索中...";
+    document.getElementById('sDetailJan').innerText = code;
     
-    // 2. Yahoo由来の詳細情報を空にする（ID名はHTMLに合わせて適宜調整してください）
+    // Yahoo情報の枠を空にする
     const priceEl = document.getElementById('sDetailPrice');
     const brandEl = document.getElementById('sDetailBrand');
     const statusEl = document.getElementById('sDetailStatus');
@@ -918,18 +930,12 @@ async function processUnifiedFlow(code, mode) {
     if (brandEl) brandEl.innerText = "---";
     if (statusEl) statusEl.innerText = "---";
     if (descEl) descEl.innerText = "";
-    
-    // 3. 画像を即座にクリア（前の商品の残像を消す）
-    if (imgEl) imgEl.src = ""; 
+    if (imgEl) imgEl.src = ""; // 画像の残像を消去
 
-    // 4. 日付の初期値を今日にセット
-    document.getElementById('expiry').value = new Date().toISOString().split('T')[0];
-
-    // 5. 保存ボタンを一時ロック（誤登録防止）
-    const saveBtn = document.getElementById('mainSaveBtn');
-    if (saveBtn) saveBtn.disabled = true;
+    // 検索モードの保存ボタンは、このエリアが表示された時点では
+    // デフォルトで押せる状態（またはHTMLの初期状態）でOK
+    // ※ 取得完了後に値を流し込むので、ロックしなくても実害はありません
   }
-
   // --- 5. 🚀 GAS問い合わせ (Promise.allで高速化) ---
   // 商品情報と全店在庫を同時に取得し、待ち時間を半分にします
   const [res, stockRes] = await Promise.all([
